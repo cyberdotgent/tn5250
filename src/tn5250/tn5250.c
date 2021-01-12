@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
       goto bomb_out;
 
 #ifdef USE_CURSES
+   TN5250_LOG(("Using curses terminal\n"));
    term = tn5250_curses_terminal_new();
    if (tn5250_config_get (config, "underscores")) {
       tn5250_curses_terminal_use_underscores(term,
@@ -118,7 +119,7 @@ int main(int argc, char *argv[])
 #endif
    if (term == NULL)
       goto bomb_out;
-   if (tn5250_terminal_config (term, config) == -1)
+   if (curses_terminal_config (term, config) == -1)
       goto bomb_out;
 #ifndef NDEBUG
    /* Shrink-wrap the terminal with the debug terminal, if appropriate. */
