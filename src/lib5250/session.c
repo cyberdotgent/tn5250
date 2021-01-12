@@ -1846,8 +1846,8 @@ static void tn5250_session_query_reply(Tn5250Session * This)
    else
       dev_model = 1;
 
-   sprintf ((char*)temp + 30, "%04d", dev_type);
-   sprintf ((char*)temp + 35, "%02d", dev_model);
+   snprintf ((char*)temp + 30, 4, "%04d", dev_type);
+   snprintf ((char*)temp + 35, 2, "%02d", dev_model);
 
    for (i = 30; i <= 36; i++)
       temp[i] = tn5250_char_map_to_remote (
