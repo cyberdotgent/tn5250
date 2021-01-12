@@ -116,31 +116,33 @@ static const UCHAR SB_Str_TermType[]={IAC, SB, TERMINAL_TYPE, SEND, IAC, SE};
  #define TNSB_LOG	log_SB_buf
  #define LOGERROR	logError
 
-static char *getTelOpt(what)
+static char *getTelOpt(int what)
 {
-   char *wcp, wbuf[10];
+   char *wbuf;
+
+   wbuf = malloc(16);
 
    switch (what) {
       case TERMINAL_TYPE:
-		wcp = "<TERMTYPE>";
+		snprintf(wbuf, 16, "<TERMTYPE>");
 		break;
       case END_OF_RECORD:
-		wcp = "<END_OF_REC>";
+		snprintf(wbuf, 16, "<END_OF_REC>");
 		break;
       case TRANSMIT_BINARY:
-		wcp = "<BINARY>";
+		snprintf(wbuf, 16, "<BINARY>");
 		break;
       case NEW_ENVIRON:
-		wcp = "<NEWENV>";
+		snprintf(wbuf, 16, "<NEWENV>");
 		break;
       case EOR:
-		wcp = "<EOR>";
+		snprintf(wbuf, 16, "<EOR>");
 		break;
       default:
-		snprintf(wcp=wbuf, 4 ,"<%02X>", what);
+		snprintf(wbuf, 16 ,"<%02X>", what);
 		break;
    }
-   return wcp;
+   return wbuf;
 }
 
 static void logError(char *tag, int ecode)
@@ -152,27 +154,32 @@ static void logError(char *tag, int ecode)
 
 static void log_IAC_verb(char *tag, int verb, int what)
 {
-   char *vcp, vbuf[10];
+   char *vbuf;
+
+   vbuf = malloc(10);
 
    if (!tn5250_logfile)
       return;
    switch (verb) {
-      case DO:	vcp = "<DO>";
-		break;
+      case DO:
+        snprintf(vbuf, 10, "<DO>");
+	break;
       case DONT:
-		vcp = "<DONT>";
-		break;
+	snprintf(vbuf, 10, "<DONT>");
+	break;
       case WILL:
-		vcp = "<WILL>";
-		break;
+	snprintf(vbuf, 10, "<WILL>");
+	break;
       case WONT:
-		vcp = "<WONT>";
-		break;
+	snprintf(vbuf, 10, "<WONT>");
+	break;
       default:
-		snprintf(vcp=vbuf, 4, "<%02X>", verb);
-		break;
+	snprintf(vbuf, 10, "<%02X>", verb);
+	break;
    }
-   fprintf(tn5250_logfile,"%s:<IAC>%s%s\n", tag, vcp, getTelOpt(what));
+   fprintf(tn5250_logfile,"%s:<IAC>%s%s\n", tag, vbuf, getTelOpt(what));
+
+   free(vbuf);
 }
 
 static int dumpVarVal(UCHAR *buf, int len)
@@ -191,6 +198,7 @@ static int dumpVarVal(UCHAR *buf, int len)
 static int dumpNewEnv(unsigned char *buf, int len)
 {
    int c, i=0, j;
+   char * telOpt;
 
    while (i<len) {
       switch (c=buf[i]) {
@@ -227,7 +235,9 @@ static int dumpNewEnv(unsigned char *buf, int len)
 		i += j;
 		break;
          default:
-		fputs(getTelOpt(c),tn5250_logfile);
+		telOpt = getTelOpt(c);
+		fputs(telOpt,tn5250_logfile);
+		free(telOpt);
       } /* switch */
    } /* while */
    return i;
