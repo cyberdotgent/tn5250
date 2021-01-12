@@ -23,10 +23,13 @@
 #include "tn5250-private.h"
 #include "scs.h"
 
-static void scs2ascii_process34 (int *curpos);
-static void scs2ascii_ahpp (int *curpos);
-static void scs2ascii_avpp (int *curline);
-void scs2ascii_transparent ();
+static void scs2ascii_process34(int *curpos);
+
+static void scs2ascii_ahpp(int *curpos);
+
+static void scs2ascii_avpp(int *curline);
+
+void scs2ascii_transparent();
 
 unsigned char curchar;
 unsigned char nextchar;
@@ -34,194 +37,160 @@ int current_line;
 int mpp;
 
 int
-main ()
-{
-  Tn5250CharMap *map;
-  int new_line = 1;
-  int ccp = 1;
-  int width;
-  int length;
-  int cpi;  /* This is unused */
-  current_line = 1;
-  mpp = 132;
+main() {
+    Tn5250CharMap *map;
+    int new_line = 1;
+    int ccp = 1;
+    int width;
+    int length;
+    int cpi;  /* This is unused */
+    current_line = 1;
+    mpp = 132;
 
-  if ((getenv ("TN5250_CCSIDMAP")) != NULL)
-    {
-      map = tn5250_char_map_new (getenv ("TN5250_CCSIDMAP"));
-    }
-  else
-    {
-      map = tn5250_char_map_new ("37");
+    if ((getenv("TN5250_CCSIDMAP")) != NULL) {
+        map = tn5250_char_map_new(getenv("TN5250_CCSIDMAP"));
+    } else {
+        map = tn5250_char_map_new("37");
     }
 
-  while (!feof (stdin))
-    {
-      curchar = fgetc (stdin);
-      switch (curchar)
-	{
-	case SCS_TRANSPARENT:
-	  {
-	    scs2ascii_transparent ();
-	    break;
-	  }
-	case SCS_RFF:
-	  {
-	    scs_rff ();
-	    break;
-	  }
-	case SCS_NOOP:
-	  {
-	    scs_noop ();
-	    break;
-	  }
-	case SCS_CR:
-	  {
-	    scs_cr ();
-	    break;
-	  }
-	case SCS_FF:
-	  {
-	    scs_ff ();
-	    printf ("\f");
-            current_line = 1;
-	    break;
-	  }
-	case SCS_NL:
-	  {
-	    if (!new_line)
-	      {
-	      }
-	    printf ("\n");
-	    new_line = scs_nl ();
-	    ccp = 1;
-            current_line ++;
-	    break;
-	  }
-	case SCS_RNL:
-	  {
-	    scs_rnl ();
-	    break;
-	  }
-	case SCS_HT:
-	  {
-	    scs_ht ();
-	    break;
-	  }
-	case 0x34:
-	  {
-	    scs2ascii_process34 (&ccp);
-	    break;
-	  }
-	case 0x2B:
-	  {
-	    scs_process2b (&width, &length, &cpi);
-	    break;
-	  }
-	case 0xFF:
-	  {
-	    /* This is a hack */
-	    /* Don't know where the 0xFF is coming from */
-	    break;
-	  }
-	default:
-	  {
-	    if (new_line)
-	      {
-		new_line = 0;
-	      }
-	    printf ("%c", tn5250_char_map_to_local (map, curchar));
-	    ccp++;
-	    fprintf (stderr, ">%x\n", curchar);
-	  }
-	}
+    while (!feof(stdin)) {
+        curchar = fgetc(stdin);
+        switch (curchar) {
+            case SCS_TRANSPARENT: {
+                scs2ascii_transparent();
+                break;
+            }
+            case SCS_RFF: {
+                scs_rff();
+                break;
+            }
+            case SCS_NOOP: {
+                scs_noop();
+                break;
+            }
+            case SCS_CR: {
+                scs_cr();
+                break;
+            }
+            case SCS_FF: {
+                scs_ff();
+                printf("\f");
+                current_line = 1;
+                break;
+            }
+            case SCS_NL: {
+                if (!new_line) {
+                }
+                printf("\n");
+                new_line = scs_nl();
+                ccp = 1;
+                current_line++;
+                break;
+            }
+            case SCS_RNL: {
+                scs_rnl();
+                break;
+            }
+            case SCS_HT: {
+                scs_ht();
+                break;
+            }
+            case 0x34: {
+                scs2ascii_process34(&ccp);
+                break;
+            }
+            case 0x2B: {
+                scs_process2b(&width, &length, &cpi);
+                break;
+            }
+            case 0xFF: {
+                /* This is a hack */
+                /* Don't know where the 0xFF is coming from */
+                break;
+            }
+            default: {
+                if (new_line) {
+                    new_line = 0;
+                }
+                printf("%c", tn5250_char_map_to_local(map, curchar));
+                ccp++;
+                fprintf(stderr, ">%x\n", curchar);
+            }
+        }
 
     }
-  tn5250_char_map_destroy (map);
-  return (0);
+    tn5250_char_map_destroy(map);
+    return (0);
 }
 
 static void
-scs2ascii_process34 (int *curpos)
-{
+scs2ascii_process34(int *curpos) {
 
-  curchar = fgetc (stdin);
-  switch (curchar)
-    {
-    case SCS_AVPP:
-      {
-	scs2ascii_avpp (&current_line);
-	break;
-      }
-    case SCS_AHPP:
-      {
-	scs2ascii_ahpp (curpos);
-	break;
-      }
-    default:
-      {
-	fprintf (stderr, "ERROR: Unknown 0x34 command %x\n", curchar);
-      }
+    curchar = fgetc(stdin);
+    switch (curchar) {
+        case SCS_AVPP: {
+            scs2ascii_avpp(&current_line);
+            break;
+        }
+        case SCS_AHPP: {
+            scs2ascii_ahpp(curpos);
+            break;
+        }
+        default: {
+            fprintf(stderr, "ERROR: Unknown 0x34 command %x\n", curchar);
+        }
     }
 }
 
 static void
-scs2ascii_ahpp (int *curpos)
-{
-  int position;
-  int loop;
+scs2ascii_ahpp(int *curpos) {
+    int position;
+    int loop;
 
-  position = fgetc (stdin);
-  if (*curpos > position)
-    {
-      printf ("\r");
-      for (loop = 0; loop < position; loop++)
-	{
-	  printf (" ");
-	}
+    position = fgetc(stdin);
+    if (*curpos > position) {
+        printf("\r");
+        for (loop = 0; loop < position; loop++) {
+            printf(" ");
+        }
+    } else {
+        for (loop = 0; loop < position - *curpos; loop++) {
+            printf(" ");
+        }
     }
-  else
-    {
-      for (loop = 0; loop < position - *curpos; loop++)
-	{
-	  printf (" ");
-	}
-    }
-  *curpos = position;
-  fprintf (stderr, "AHPP %d\n", position);
+    *curpos = position;
+    fprintf(stderr, "AHPP %d\n", position);
 }
 
 void
-scs2ascii_transparent ()
-{
+scs2ascii_transparent() {
 
-  int bytecount;
-  int loop;
+    int bytecount;
+    int loop;
 
-  bytecount = fgetc (stdin);
-  fprintf (stderr, "TRANSPARENT (%x) = ", bytecount);
-  for (loop = 0; loop < bytecount; loop++)
-    {
-      printf ("%c", fgetc (stdin));
+    bytecount = fgetc(stdin);
+    fprintf(stderr, "TRANSPARENT (%x) = ", bytecount);
+    for (loop = 0; loop < bytecount; loop++) {
+        printf("%c", fgetc(stdin));
     }
 }
 
 static void
-scs2ascii_avpp (int *curline)
-{
-  int line;
+scs2ascii_avpp(int *curline) {
+    int line;
 
-  line = fgetc(stdin);
-  fprintf (stderr, "AVPP %d\n", line);
+    line = fgetc(stdin);
+    fprintf(stderr, "AVPP %d\n", line);
 
-  if (*curline>line) {
-       printf ("\f");
-       *curline = 1;
-  }
+    if (*curline > line) {
+        printf("\f");
+        *curline = 1;
+    }
 
-  while (*curline<line) {
-       printf ("\n");
-       (*curline) ++;
-  }
+    while (*curline < line) {
+        printf("\n");
+        (*curline)++;
+    }
 
 }
 

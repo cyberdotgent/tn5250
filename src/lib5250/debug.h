@@ -23,8 +23,11 @@
  * 
  */
 #ifndef NDEBUG
-extern Tn5250Terminal *tn5250_debug_terminal_new (Tn5250Terminal *slave, Tn5250Stream *dbgstream);
-void tn5250_debug_terminal_set_pause (Tn5250Terminal *This, int f);
+
+extern Tn5250Terminal *tn5250_debug_terminal_new(Tn5250Terminal *slave, Tn5250Stream *dbgstream);
+
+void tn5250_debug_terminal_set_pause(Tn5250Terminal *This, int f);
+
 #endif
 
 #endif /* DEBUG */

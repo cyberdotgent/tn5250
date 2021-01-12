@@ -39,35 +39,51 @@
 #include <signal.h>
 
 #ifdef HAVE_UNISTD_H
+
 #include <unistd.h>
+
 #endif
 
 #ifdef HAVE_LOCALE_H
+
 #include <locale.h>
+
 #endif
 
 #ifdef HAVE_SYS_TIME_H
+
 #include <sys/time.h>
+
 #endif
 
 #ifdef HAVE_SYS_TYPES_H
+
 #include <sys/types.h>
+
 #endif
 
 #ifdef HAVE_SYS_WAIT_H
+
 #include <sys/wait.h>
+
 #endif
 
 #ifdef HAVE_FCNTL_H
+
 #include <fcntl.h>
+
 #endif
 
 #ifdef HAVE_SYSLOG_H
+
 #include <syslog.h>
+
 #endif
 
 #ifdef HAVE_PWD_H
+
 #include <pwd.h>
+
 #endif
 
 #include "buffer.h"
@@ -88,14 +104,20 @@
 
 #if USE_CURSES
 #ifdef HAVE_NCURSES_H
+
 #include <ncurses.h>
+
 #else
 #include <curses.h>
 #endif
 #ifdef HAVE_TERMCAP_H
+
 #include <termcap.h>
+
 #endif
+
 #include "cursesterm.h"
+
 #endif
 
 #if USE_SLANG
@@ -110,6 +132,7 @@
 extern char *version_string;
 
 #if !defined(WINE) && !defined(WIN32)
+
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -118,6 +141,7 @@ extern char *version_string;
 #include <errno.h>
 #include <netdb.h>
 #include <unistd.h>
+
 #endif
 
 #ifdef HAVE_SYS_FILIO_H
@@ -145,8 +169,8 @@ INT WINAPI WINSOCK_recv(SOCKET s, char *buf, INT len, INT flags);
 INT WINAPI WINSOCK_send(SOCKET s, char *buf, INT len, INT flags);
 void WINAPI WINSOCK_closesocket(SOCKET s);
 INT WINAPI WINSOCK_select(INT nfds, ws_fd_set32 * ws_readfds,
-		   ws_fd_set32 * ws_writefds, ws_fd_set32 * ws_exceptfds,
-			  struct timeval *timeout);
+           ws_fd_set32 * ws_writefds, ws_fd_set32 * ws_exceptfds,
+              struct timeval *timeout);
 
 #define fd_set ws_fd_set32
 #undef FD_ZERO
@@ -170,15 +194,15 @@ INT WINAPI WINSOCK_select(INT nfds, ws_fd_set32 * ws_readfds,
 /* end WIN32 */
 
 #else
-#define TN_SOCKET		socket
-#define TN_CONNECT		connect
-#define TN_SELECT		select
-#define TN_GETHOSTBYNAME	gethostbyname
-#define TN_GETSERVBYNAME	getservbyname
-#define TN_SEND			send
-#define TN_RECV		        recv
-#define TN_CLOSE		close
-#define TN_IOCTL		ioctl
+#define TN_SOCKET        socket
+#define TN_CONNECT        connect
+#define TN_SELECT        select
+#define TN_GETHOSTBYNAME    gethostbyname
+#define TN_GETSERVBYNAME    getservbyname
+#define TN_SEND            send
+#define TN_RECV                recv
+#define TN_CLOSE        close
+#define TN_IOCTL        ioctl
 
 #endif
 
@@ -191,11 +215,11 @@ INT WINAPI WINSOCK_select(INT nfds, ws_fd_set32 * ws_readfds,
 #define WAS_INVAL_SOCK(r)	((r) == INVALID_SOCKET)
 #else
 /* Real, UNIX socketing */
-#define LAST_ERROR		(errno)
-#define ERR_INTR		EINTR
-#define ERR_AGAIN		EAGAIN
-#define WAS_ERROR_RET(r)	((r) < 0)
-#define WAS_INVAL_SOCK(r)	((r) < 0)
+#define LAST_ERROR        (errno)
+#define ERR_INTR        EINTR
+#define ERR_AGAIN        EAGAIN
+#define WAS_ERROR_RET(r)    ((r) < 0)
+#define WAS_INVAL_SOCK(r)    ((r) < 0)
 #endif
 
 #ifndef INADDR_NONE
@@ -204,6 +228,6 @@ INT WINAPI WINSOCK_select(INT nfds, ws_fd_set32 * ws_readfds,
 
 /* END: of really ugly network portability layer. */
 
-#endif				/* PRIVATE_H */
+#endif                /* PRIVATE_H */
 
 /* vi:set cindent sts=3 sw=3: */

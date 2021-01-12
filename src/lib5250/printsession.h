@@ -39,24 +39,31 @@ extern "C" {
  *    Manages a 5250e printer session and parses the data records.
  *****/
 struct _Tn5250PrintSession {
-   Tn5250Stream /*@null@*/ /*@owned@*/ *stream;
-   Tn5250Record /*@owned@*/ *rec;
-   int conn_fd;
-   FILE /*@null@*/ *printfile;
-   Tn5250CharMap *map;
-   char /*@null@*/ *output_cmd;
+    Tn5250Stream /*@null@*/ /*@owned@*/ *stream;
+    Tn5250Record /*@owned@*/ *rec;
+    int conn_fd;
+    FILE /*@null@*/ *printfile;
+    Tn5250CharMap *map;
+    char /*@null@*/ *output_cmd;
 };
 
 typedef struct _Tn5250PrintSession Tn5250PrintSession;
 
 extern Tn5250PrintSession /*@only@*/ /*@null@*/ *tn5250_print_session_new();
-extern void tn5250_print_session_destroy(Tn5250PrintSession /*@only@*/ * This);
-extern void tn5250_print_session_set_fd(Tn5250PrintSession * This, SOCKET_TYPE fd);
-extern int tn5250_print_session_get_response_code(Tn5250PrintSession * This, char /*@out@*/ *code);
-extern void tn5250_print_session_set_stream(Tn5250PrintSession * This, Tn5250Stream /*@owned@*/ * s);
-extern void tn5250_print_session_set_output_command(Tn5250PrintSession * This, const char *output_cmd);
-extern void tn5250_print_session_set_char_map(Tn5250PrintSession * This, const char *map);
-extern void tn5250_print_session_main_loop(Tn5250PrintSession * This);
+
+extern void tn5250_print_session_destroy(Tn5250PrintSession /*@only@*/ *This);
+
+extern void tn5250_print_session_set_fd(Tn5250PrintSession *This, SOCKET_TYPE fd);
+
+extern int tn5250_print_session_get_response_code(Tn5250PrintSession *This, char /*@out@*/ *code);
+
+extern void tn5250_print_session_set_stream(Tn5250PrintSession *This, Tn5250Stream /*@owned@*/ *s);
+
+extern void tn5250_print_session_set_output_command(Tn5250PrintSession *This, const char *output_cmd);
+
+extern void tn5250_print_session_set_char_map(Tn5250PrintSession *This, const char *map);
+
+extern void tn5250_print_session_main_loop(Tn5250PrintSession *This);
 
 #define tn5250_print_session_stream(This) ((This)->stream)
 
@@ -64,6 +71,6 @@ extern void tn5250_print_session_main_loop(Tn5250PrintSession * This);
 }
 
 #endif
-#endif				/* PRINTSESSION_H */
+#endif                /* PRINTSESSION_H */
 
 /* vi:set cindent sts=3 sw=3: */

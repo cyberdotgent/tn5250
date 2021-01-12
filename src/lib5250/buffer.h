@@ -41,30 +41,33 @@ extern "C" {
  * SOURCE
  */
 struct _Tn5250Buffer {
-   unsigned char /*@null@*/ *data;
-   int len;
-   int allocated;
+    unsigned char /*@null@*/ *data;
+    int len;
+    int allocated;
 };
 
 typedef /*@abstract@*/ /*@immutable@*/ struct _Tn5250Buffer Tn5250Buffer;
 /*******/
 
 /* These don't work like new/destroy */
-extern void tn5250_buffer_init( /*@out@*/ Tn5250Buffer * This);
-extern void tn5250_buffer_free(Tn5250Buffer * This);
+extern void tn5250_buffer_init( /*@out@*/ Tn5250Buffer *This);
+
+extern void tn5250_buffer_free(Tn5250Buffer *This);
 
 #define tn5250_buffer_data(This) \
-	((This)->data ? (This)->data : (unsigned char *)"")
+    ((This)->data ? (This)->data : (unsigned char *)"")
 #define tn5250_buffer_length(This) ((This)->len)
 
-extern void tn5250_buffer_append_byte(Tn5250Buffer * This, unsigned char b);
-extern void tn5250_buffer_append_data(Tn5250Buffer * This, unsigned char *data, int len);
-extern void tn5250_buffer_log (Tn5250Buffer *This, const char *prefix);
+extern void tn5250_buffer_append_byte(Tn5250Buffer *This, unsigned char b);
+
+extern void tn5250_buffer_append_data(Tn5250Buffer *This, unsigned char *data, int len);
+
+extern void tn5250_buffer_log(Tn5250Buffer *This, const char *prefix);
 
 #ifdef __cplusplus
 }
 
 #endif
-#endif				/* BUFFER_H */
+#endif                /* BUFFER_H */
 
 /* vi:set sts=3 sw=3 autoindent: */

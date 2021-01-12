@@ -24,7 +24,7 @@
 
 #if WIN32
 # include <winsock.h>  /* Need for SOCKET type.  GJS 3/3/2000 */
-#endif 
+#endif
 
 #ifdef HAVE_LIBSSL
 #include <openssl/ssl.h>
@@ -58,64 +58,78 @@ struct _Tn5250Config;
  * SOURCE
  */
 struct _Tn5250Stream {
-   int (* connect) (struct _Tn5250Stream *This, const char *to);
-  int (* accept) (struct _Tn5250Stream *This, SOCKET_TYPE masterSock);
-   void (* disconnect) (struct _Tn5250Stream *This);
-   int (* handle_receive) (struct _Tn5250Stream *This);
-   void (* send_packet) (struct _Tn5250Stream *This, int length, int flowtype, unsigned char flags,
-	 unsigned char opcode, unsigned char *data);
-   void (/*@null@*/ * destroy) (struct _Tn5250Stream /*@only@*/ *This);
+    int (*connect)(struct _Tn5250Stream *This, const char *to);
 
-   struct _Tn5250Config *config; 
+    int (*accept)(struct _Tn5250Stream *This, SOCKET_TYPE masterSock);
 
-   Tn5250Record /*@null@*/ *records;
-   Tn5250Record /*@dependent@*/ /*@null@*/ *current_record;
-   int record_count;
+    void (*disconnect)(struct _Tn5250Stream *This);
 
-   Tn5250Buffer sb_buf;
+    int (*handle_receive)(struct _Tn5250Stream *This);
 
-   SOCKET_TYPE sockfd;
-   int status;
-   int state;
-  long msec_wait;
+    void (*send_packet)(struct _Tn5250Stream *This, int length, int flowtype, unsigned char flags,
+                        unsigned char opcode, unsigned char *data);
+
+    void (/*@null@*/ *destroy)(struct _Tn5250Stream /*@only@*/ *This);
+
+    struct _Tn5250Config *config;
+
+    Tn5250Record /*@null@*/ *records;
+    Tn5250Record /*@dependent@*/ /*@null@*/ *current_record;
+    int record_count;
+
+    Tn5250Buffer sb_buf;
+
+    SOCKET_TYPE sockfd;
+    int status;
+    int state;
+    long msec_wait;
 
 #ifdef HAVE_LIBSSL
-  SSL *ssl_handle;
-  SSL_CTX *ssl_context;
-  void *userdata;
+    SSL *ssl_handle;
+    SSL_CTX *ssl_context;
+    void *userdata;
 #endif
 
 #ifndef NDEBUG
-   FILE *debugfile;
+    FILE *debugfile;
 #endif
 };
 
 typedef struct _Tn5250Stream Tn5250Stream;
+
 /******/
 
-extern Tn5250Stream /*@only@*/ /*@null@*/ *tn5250_stream_open (const char *to, struct _Tn5250Config *config);
-extern int tn5250_stream_config (Tn5250Stream *This, struct _Tn5250Config *config);
-extern void tn5250_stream_destroy(Tn5250Stream /*@only@*/ * This);
-extern Tn5250Record /*@only@*/ *tn5250_stream_get_record(Tn5250Stream * This);
+extern Tn5250Stream /*@only@*/ /*@null@*/ *tn5250_stream_open(const char *to, struct _Tn5250Config *config);
+
+extern int tn5250_stream_config(Tn5250Stream *This, struct _Tn5250Config *config);
+
+extern void tn5250_stream_destroy(Tn5250Stream /*@only@*/ *This);
+
+extern Tn5250Record /*@only@*/ *tn5250_stream_get_record(Tn5250Stream *This);
+
 extern Tn5250Stream *tn5250_stream_host(SOCKET_TYPE masterSock, long timeout);
-#define tn5250_stream_connect(This,to) \
+
+#define tn5250_stream_connect(This, to) \
    (* (This->connect)) ((This),(to))
 #define tn5250_stream_disconnect(This) \
    (* (This->disconnect)) ((This))
 #define tn5250_stream_handle_receive(This) \
    (* (This->handle_receive)) ((This))
-#define tn5250_stream_send_packet(This,len,flow,flags,opcode,data) \
+#define tn5250_stream_send_packet(This, len, flow, flags, opcode, data) \
    (* (This->send_packet)) ((This),(len),(flow),(flags),(opcode),(data))
 
 /* This should be a more flexible replacement for different NEW_ENVIRON
  * strings. */
-extern void tn5250_stream_setenv(Tn5250Stream * This, const char *name,
-				 const char /*@null@*/ *value);
-extern void tn5250_stream_unsetenv(Tn5250Stream * This, const char *name);
-extern /*@observer@*/ /*@null@*/ const char *tn5250_stream_getenv(Tn5250Stream * This, const char *name);
+extern void tn5250_stream_setenv(Tn5250Stream *This, const char *name,
+                                 const char /*@null@*/ *value);
+
+extern void tn5250_stream_unsetenv(Tn5250Stream *This, const char *name);
+
+extern /*@observer@*/ /*@null@*/ const char *tn5250_stream_getenv(Tn5250Stream *This, const char *name);
 
 #define tn5250_stream_record_count(This) ((This)->record_count)
-extern int tn5250_stream_socket_handle (Tn5250Stream *This);
+
+extern int tn5250_stream_socket_handle(Tn5250Stream *This);
 
 #ifdef __cplusplus
 }
