@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  *
  * This file is part of TN5250.
  *
@@ -25,7 +25,6 @@ Tn5250Stream *stream = NULL;
 Tn5250Terminal *term = NULL;
 Tn5250Display *display = NULL;
 Tn5250Config *config = NULL;
-Tn5250Macro *macro = NULL;
 
 /* FIXME: This should be moved into session.[ch] or something. */
 static struct valid_term {
@@ -93,7 +92,6 @@ int main(int argc, char *argv[])
       goto bomb_out;
 
 #ifdef USE_CURSES
-   TN5250_LOG(("Using curses terminal\n"));
    term = tn5250_curses_terminal_new();
    if (tn5250_config_get (config, "underscores")) {
       tn5250_curses_terminal_use_underscores(term,
@@ -102,12 +100,12 @@ int main(int argc, char *argv[])
    }
    if (tn5250_config_get (config, "ruler")) {
       tn5250_curses_terminal_display_ruler(term,
-	    tn5250_config_get_bool (config, "ruler")
-	    );
+           tn5250_config_get_bool (config, "ruler")
+           );
    }
-   if ((tn5250_config_get (config, "font_80")) 
+   if ((tn5250_config_get (config, "font_80"))
        && (tn5250_config_get (config, "font_132"))) {
-      tn5250_curses_terminal_set_xterm_font (term,   
+      tn5250_curses_terminal_set_xterm_font (term,
             tn5250_config_get (config, "font_80"),
             tn5250_config_get (config, "font_132")
             );
@@ -119,7 +117,7 @@ int main(int argc, char *argv[])
 #endif
    if (term == NULL)
       goto bomb_out;
-   if (curses_terminal_config (term, config) == -1)
+   if (tn5250_terminal_config (term, config) == -1)
       goto bomb_out;
 #ifndef NDEBUG
    /* Shrink-wrap the terminal with the debug terminal, if appropriate. */
@@ -149,15 +147,10 @@ int main(int argc, char *argv[])
    if (tn5250_session_config (sess, config) == -1)
       goto bomb_out;
 
-   macro = tn5250_macro_init() ;
-   tn5250_macro_attach (display, macro) ;
-
    tn5250_session_main_loop(sess);
    errno = 0;
 
 bomb_out:
-   if (macro != NULL)
-      tn5250_macro_exit(macro);
    if (term != NULL)
       tn5250_terminal_term(term);
    if (sess != NULL)
@@ -185,8 +178,8 @@ static void syntax()
 Syntax:\n\
   tn5250 [options] HOST[:PORT]\n");
 #ifdef HAVE_LIBSSL
-   printf ("\
-   To connect using ssl prefix HOST with 'ssl:'.  Example:\
+   printf("\
+   To connect using ssl prefix HOST with 'ssl:'.  Example:
       tn5250 +ssl_verify_server ssl:as400.example.com\n");
 #endif
    printf ("\n\
@@ -212,14 +205,12 @@ Options:\n\
    ssl_cert_file=FILE      File containing SSL certificate in PEM format to\n\
                            use if the AS/400 requires client authentication.\n\
    ssl_pem_pass=PHRASE     Passphrase to use when decrypting a PEM private\n\
-                           key.  Used in conjunction with ssl_cert_file\n\
-   ssl_check_exp[=SECS]    Check if SSL certificate is expired, or if it\n\
-                           will be expired in SECS seconds.\n");
+                           key.  Used in conjunction with ssl_cert_file\n");
 #endif
    printf ("\
    +/-underscores          Use/don't use underscores instead of underline\n\
                            attribute.\n\
-   +/-ruler		   Draw a ruler pointing to the cursor position\n\
+   +/-ruler                Draw a ruler pointing to the cursor position\n\
    +/-version              Show emulator version and exit.\n\
    env.NAME=VALUE          Set telnet environment string NAME to VALUE.\n\
    env.TERM=TYPE           Emulate IBM terminal type (default: depends)");

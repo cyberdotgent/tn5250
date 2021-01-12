@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 2001-2008 Scott Klement
+ * Copyright (C) 2001 Scott Klement
  *
  * parts of this were copied from telnetstr.c which is (C) 1997 Michael Madore
  * 
@@ -28,7 +28,6 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include <time.h>
 
 static int ssl_stream_get_next(Tn5250Stream *This,unsigned char *buf,int size);
 static void ssl_stream_do_verb(Tn5250Stream * This, unsigned char verb, unsigned char what);
@@ -46,13 +45,9 @@ static void ssl_stream_destroy(Tn5250Stream *This);
 static void ssl_stream_disconnect(Tn5250Stream * This);
 static int ssl_stream_handle_receive(Tn5250Stream * This);
 static void ssl_stream_send_packet(Tn5250Stream * This, int length,
-				      StreamHeader header,
-				      unsigned char *data);
-static void tn3270_ssl_stream_send_packet(Tn5250Stream * This, int length,
-				      StreamHeader header,
-				      unsigned char * data);
+		int flowtype, unsigned char flags, unsigned char opcode,
+		unsigned char *data);
 int ssl_stream_passwd_cb(char *buf, int size, int rwflag, Tn5250Stream *This);
-X509 *ssl_stream_load_cert(Tn5250Stream *This, const char *file);
 
 
 #define SEND    1
@@ -74,36 +69,6 @@ X509 *ssl_stream_load_cert(Tn5250Stream *This, const char *file);
 #define TERMINAL_TYPE   24
 #define TIMING_MARK     6
 #define NEW_ENVIRON	39
-
-#define TN3270E         40
-
-/* Sub-Options for TN3270E negotiation */
-#define TN3270E_ASSOCIATE   0
-#define TN3270E_CONNECT     1
-#define TN3270E_DEVICE_TYPE 2
-#define TN3270E_FUNCTIONS   3
-#define TN3270E_IS          4
-#define TN3270E_REASON      5
-#define TN3270E_REJECT      6
-#define TN3270E_REQUEST     7
-#define TN3270E_SEND        8
-
-/* Reason codes for TN3270E negotiation */
-#define TN3270E_CONN_PARTNER    0
-#define TN3270E_DEVICE_IN_USE   1
-#define TN3270E_INV_ASSOCIATE   2
-#define TN3270E_INV_NAME        3
-#define TN3270E_INV_DEVICE_TYPE 4
-#define TN3270E_TYPE_NAME_ERROR 5
-#define TN3270E_UNKNOWN_ERROR   6
-#define TN3270E_UNSUPPORTED_REQ 7
-
-/* Function names for TN3270E FUNCTIONS sub-option */
-#define TN3270E_BIND_IMAGE      0
-#define TN3270E_DATA_STREAM_CTL 1
-#define TN3270E_RESPONSES       2
-#define TN3270E_SCS_CTL_CODES   3
-#define TN3270E_SYSREQ          4
 
 #define EOR  239
 #define SE   240
@@ -131,14 +96,11 @@ X509 *ssl_stream_load_cert(Tn5250Stream *This, const char *file);
 typedef unsigned char UCHAR;
 #endif
 
-static const UCHAR hostInitStr[] = {IAC,DO,NEW_ENVIRON,IAC,DO,TERMINAL_TYPE};
-static const UCHAR hostDoEOR[] = {IAC,DO,END_OF_RECORD};
-static const UCHAR hostDoBinary[] = {IAC,DO,TRANSMIT_BINARY};
-static const UCHAR hostDoTN3270E[] = {IAC,DO,TN3270E};
-static const UCHAR hostSBDevice[] = {IAC,SB,TN3270E,TN3270E_SEND,TN3270E_DEVICE_TYPE,
-			       IAC,SE};
+static UCHAR hostInitStr[] = {IAC,DO,NEW_ENVIRON,IAC,DO,TERMINAL_TYPE};
+static UCHAR hostDoEOR[] = {IAC,DO,END_OF_RECORD};
+static UCHAR hostDoBinary[] = {IAC,DO,TRANSMIT_BINARY};
 typedef struct doTable_t {
-   const UCHAR	*cmd;
+   UCHAR	*cmd;
    unsigned	len;
 } DOTABLE;
 
@@ -147,13 +109,6 @@ static const DOTABLE host5250DoTable[] = {
   hostDoEOR,	sizeof(hostDoEOR),
   hostDoBinary,	sizeof(hostDoBinary),
   NULL,		0
-};
-
-static const DOTABLE host3270DoTable[] = {
-  hostInitStr,  sizeof(hostInitStr),
-  hostDoEOR,    sizeof(hostDoEOR),
-  hostDoBinary, sizeof(hostDoBinary),
-  NULL,         0
 };
 
 static const UCHAR SB_Str_NewEnv[]={IAC, SB, NEW_ENVIRON, SEND, USERVAR,
@@ -174,12 +129,11 @@ int errnum;
  #define IACVERB_LOG	ssl_log_IAC_verb
  #define TNSB_LOG	ssl_log_SB_buf
  #define LOGERROR	ssl_logError
- #define DUMP_ERR_STACK ssl_log_error_stack
+ #define DUMP_ERR_STACK() ssl_log_error_stack()
 
 static char *ssl_getTelOpt(what)
 {
-   char *wcp;
-   static char wbuf[12];
+   char *wcp, wbuf[10];
 
    switch (what) {
       case TERMINAL_TYPE:
@@ -198,7 +152,7 @@ static char *ssl_getTelOpt(what)
 		wcp = "<EOR>";
 		break;
       default:
-		snprintf(wcp=wbuf, sizeof(wbuf), "<%02X>", what);
+		sprintf(wcp=wbuf, "<%02X>", what);
 		break;
    }
    return wcp;
@@ -351,7 +305,7 @@ int tn5250_ssl_stream_init (Tn5250Stream *This)
 {
    int len;
    char methstr[5];
-   SSL_METHOD *meth=NULL;
+   static SSL_METHOD *meth=NULL;
 
    TN5250_LOG(("tn5250_ssl_stream_init() entered.\n"));
 
@@ -399,60 +353,31 @@ int tn5250_ssl_stream_init (Tn5250Stream *This)
 
    This->userdata = NULL;
 
-/* if a PEM passphrase is defined, set things up so that it can be used */
+/* If a PEM passphrase was supplied, load it into memory now.  */
 
    if (This->config!=NULL && tn5250_config_get (This->config,"ssl_pem_pass")){
         TN5250_LOG(("SSL: Setting password callback\n"));
         len = strlen(tn5250_config_get (This->config, "ssl_pem_pass"));
         This->userdata = malloc(len+1);
-        strncpy(This->userdata,
+        strncpy(This->userdata, 
                 tn5250_config_get (This->config, "ssl_pem_pass"), len);
-        SSL_CTX_set_default_passwd_cb(This->ssl_context,
+        SSL_CTX_set_default_passwd_cb(This->ssl_context, 
                 (pem_password_cb *)ssl_stream_passwd_cb);
         SSL_CTX_set_default_passwd_cb_userdata(This->ssl_context, (void *)This);
-
    }
 
-/* If a certificate file has been defined, load it into this context as well */
+ /* If a certificate file has been defined, load it into this context as well */
 
    if (This->config!=NULL && tn5250_config_get (This->config, "ssl_cert_file")){
-
-        if ( tn5250_config_get (This->config,  "ssl_check_exp") ) {
-           X509 *client_cert;
-           time_t tnow;
-           int extra_time;
-           TN5250_LOG(("SSL: Checking expiration of client cert\n"));
-           client_cert = ssl_stream_load_cert(This,
-                tn5250_config_get (This->config, "ssl_cert_file"));
-           if (client_cert == NULL) {
-                TN5250_LOG(("SSL: Unable to load client certificate!\n"));
-                return -1;
-           }
-           extra_time = tn5250_config_get_int(This->config, "ssl_check_exp");
-           tnow = time(NULL) + extra_time;
-           if (ASN1_UTCTIME_cmp_time_t(X509_get_notAfter(client_cert), tnow)
-                  == -1 ) {
-                if (extra_time > 1) {
-                   printf("SSL error: client certificate will be expired\n");
-                   TN5250_LOG(("SSL: client certificate will be expired\n"));
-                } else {
-                   printf("SSL error: client certificate has expired\n");
-                   TN5250_LOG(("SSL: client certificate has expired\n"));
-                }
-                return -1;
-           }
-           X509_free(client_cert);
-        }
-           
         TN5250_LOG(("SSL: Loading certificates from certificate file\n"));
-        if (SSL_CTX_use_certificate_file(This->ssl_context,
+        if (SSL_CTX_use_certificate_file(This->ssl_context, 
                 tn5250_config_get (This->config, "ssl_cert_file"),
                 SSL_FILETYPE_PEM) <= 0) {
             DUMP_ERR_STACK ();
             return -1;
         }
         TN5250_LOG(("SSL: Loading private keys from certificate file\n"));
-        if (SSL_CTX_use_PrivateKey_file(This->ssl_context,
+        if (SSL_CTX_use_PrivateKey_file(This->ssl_context, 
                 tn5250_config_get (This->config, "ssl_cert_file"),
                 SSL_FILETYPE_PEM) <= 0) {
             DUMP_ERR_STACK ();
@@ -468,101 +393,7 @@ int tn5250_ssl_stream_init (Tn5250Stream *This)
    This->handle_receive = ssl_stream_handle_receive;
    This->send_packet = ssl_stream_send_packet;
    This->destroy = ssl_stream_destroy;
-   This->streamtype = TN5250_STREAM;
    TN5250_LOG(("tn5250_ssl_stream_init() success.\n"));
-   return 0; /* Ok */
-}
-
-/****f* lib5250/tn3270_ssl_stream_init
- * NAME
- *    tn3270_ssl_stream_init
- * SYNOPSIS
- *    ret = tn3270_ssl_stream_init (This);
- * INPUTS
- *    Tn5250Stream *       This       - 
- * DESCRIPTION
- *    DOCUMENT ME!!!
- *****/
-int tn3270_ssl_stream_init (Tn5250Stream *This)
-{
-   int len;
-
-/* initialize SSL library */
-
-   SSL_load_error_strings();
-   SSL_library_init();
-
-/* create a new SSL context */
-
-   This->ssl_context = SSL_CTX_new(SSLv23_client_method());
-   if (This->ssl_context==NULL) {
-        DUMP_ERR_STACK ();
-        return -1;
-   }
-
-/* if a certificate authority file is defined, load it into this context */
-
-   if (This->config!=NULL && tn5250_config_get (This->config, "ssl_ca_file")) {
-        if (SSL_CTX_load_verify_locations(This->ssl_context, 
-                  tn5250_config_get (This->config, "ssl_ca_file"), NULL)<1) {
-            DUMP_ERR_STACK ();
-            return -1;
-        }
-   }
-
-/* if a certificate authority file is defined, load it into this context */
-
-   if (This->config!=NULL && tn5250_config_get (This->config, "ssl_ca_file")) {
-        if (SSL_CTX_load_verify_locations(This->ssl_context, 
-                  tn5250_config_get (This->config, "ssl_ca_file"), NULL)<1) {
-            DUMP_ERR_STACK ();
-            return -1;
-        }
-   }
-
-   This->userdata = NULL;
-
-/* if a PEM passphrase is defined, set things up so that it can be used */
-
-   if (This->config!=NULL && tn5250_config_get (This->config,"ssl_pem_pass")){
-        TN5250_LOG(("SSL: Setting password callback\n"));
-        len = strlen(tn5250_config_get (This->config, "ssl_pem_pass"));
-        This->userdata = malloc(len+1);
-        strncpy(This->userdata,
-                tn5250_config_get (This->config, "ssl_pem_pass"), len);
-        SSL_CTX_set_default_passwd_cb(This->ssl_context,
-                (pem_password_cb *)ssl_stream_passwd_cb);
-        SSL_CTX_set_default_passwd_cb_userdata(This->ssl_context, (void *)This);
-
-   }
-
-/* If a certificate file has been defined, load it into this context as well */
-
-   if (This->config!=NULL && tn5250_config_get (This->config, "ssl_cert_file")){
-        TN5250_LOG(("SSL: Loading certificates from certificate file\n"));
-        if (SSL_CTX_use_certificate_file(This->ssl_context,
-                tn5250_config_get (This->config, "ssl_cert_file"),
-                SSL_FILETYPE_PEM) <= 0) {
-            DUMP_ERR_STACK ();
-            return -1;
-        }
-        TN5250_LOG(("SSL: Loading private keys from certificate file\n"));
-        if (SSL_CTX_use_PrivateKey_file(This->ssl_context,
-                tn5250_config_get (This->config, "ssl_cert_file"),
-                SSL_FILETYPE_PEM) <= 0) {
-            DUMP_ERR_STACK ();
-            return -1;
-        }
-   }
-
-   This->ssl_handle = NULL;
-   This->connect = ssl_stream_connect;
-   This->accept = ssl_stream_accept;
-   This->disconnect = ssl_stream_disconnect;
-   This->handle_receive = ssl_stream_handle_receive;
-   This->send_packet = tn3270_ssl_stream_send_packet;
-   This->destroy = ssl_stream_destroy;
-   This->streamtype = TN3270E_STREAM;
    return 0; /* Ok */
 }
 
@@ -677,25 +508,6 @@ static int ssl_stream_connect(Tn5250Stream * This, const char *to)
         return -1;
    }
    else {
-        time_t tnow = time(NULL);
-        int extra_time= 0;
-        if (This->config!=NULL && 
-            tn5250_config_get(This->config, "ssl_check_exp")!=NULL) {
-                 extra_time = tn5250_config_get_int(This->config, 
-                                             "ssl_check_exp");
-                 tnow += extra_time;
-            if (ASN1_UTCTIME_cmp_time_t(X509_get_notAfter(server_cert), tnow)
-                   == -1 ) {
-                 if (extra_time > 1) {
-                    printf("SSL error: server certificate will be expired\n");
-                    TN5250_LOG(("SSL: server certificate will be expired\n"));
-                 } else {
-                    printf("SSL error: server certificate has expired\n");
-                    TN5250_LOG(("SSL: server certificate has expired\n"));
-                 }
-                 return -1;
-            }
-        }
         TN5250_LOG(("SSL Certificate issued by: %s\n",
            X509_NAME_oneline(X509_get_issuer_name(server_cert), 0,0) ));
         certvfy = SSL_get_verify_result(This->ssl_handle);
@@ -765,76 +577,7 @@ static int ssl_stream_accept(Tn5250Stream * This, SOCKET_TYPE masterfd)
    /* Commence TN5250 negotiations...
       Send DO options (New Environment, Terminal Type, etc.) */
 
-   if(This->streamtype == TN3270E_STREAM)
-     {
-       retCode = SSL_write(this->ssl_handle, hostDoTN3270E, sizeof(hostDoTN3270E));
-       if (retCode<1) {
-         errnum = SSL_get_error(This->ssl_handle, retCode);
-         fprintf(stderr, "sslstream: %s\n", ERR_error_string(errnum,NULL));
-	 return errnum;
-       }
-
-       tv.tv_sec = 5;
-       tv.tv_usec = 0;
-       TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-       if (FD_ISSET(This->sockfd, &fdr)) {
-	   
-	 if (!ssl_stream_handle_receive(This)) {
-	   retCode = errnum;
-	   return retCode ? retCode : -1;
-	 }
-       } else {
-	 return -1;
-       }
-
-       if(This->streamtype == TN3270E_STREAM)
-	 {
-           retCode = SSL_write(This->ssl_handle, hostDoTN3270E,sizeof(hostDoTN3270E));
-           if (retCode<1) {
-              errnum = SSL_get_error(This->ssl_handle, retCode);
-              fprintf(stderr,"sslstream: %s\n",ERR_error_string(errnum,NULL));
-	      return errnum;
-           }
-
-	   FD_ZERO(&fdr);
-	   FD_SET(This->sockfd, &fdr);
-	   tv.tv_sec = 5;
-	   tv.tv_usec = 0;
-	   TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-	   if (FD_ISSET(This->sockfd, &fdr)) {
-	     
-	     if (!ssl_stream_handle_receive(This)) {
-	       retCode = errnum;
-	       return retCode ? retCode : -1;
-	     }
-	   } else {
-	     return -1;
-	   }
-
-	   FD_ZERO(&fdr);
-	   FD_SET(This->sockfd, &fdr);
-	   tv.tv_sec = 5;
-	   tv.tv_usec = 0;
-	   TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-	   if (FD_ISSET(This->sockfd, &fdr)) {
-	     
-	     if (!ssl_stream_handle_receive(This)) {
-	       retCode = errnum;
-	       return retCode ? retCode : -1;
-	     }
-	   } else {
-	     return -1;
-	   }
-	 } 
-       else 
-	 {
-	   goto neg5250;
-	 }
-     }
-   else
-     {
-     neg5250:
-       for (i=0; host5250DoTable[i].cmd; i++) {
+   for (i=0; host5250DoTable[i].cmd; i++) {
          retCode = SSL_write(This->ssl_handle, host5250DoTable[i].cmd,
                      host5250DoTable[i].len);
          if (retCode<1) {
@@ -857,7 +600,6 @@ static int ssl_stream_accept(Tn5250Stream * This, SOCKET_TYPE masterfd)
 	 } else {
 	   return -1;
 	 }
-       }
      }
    return 0;
 #endif
@@ -892,7 +634,7 @@ static void ssl_stream_disconnect(Tn5250Stream * This)
  *****/
 static void ssl_stream_destroy(Tn5250Stream *This)
 {
-   /* noop */
+   if (This->userdata!=NULL) free(This->userdata);
 }
 
 /****i* lib5250/ssl_stream_get_next
@@ -946,8 +688,10 @@ static int ssl_stream_get_next(Tn5250Stream *This,unsigned char *buf,int size)
 
 static int ssl_sendWill(Tn5250Stream *This, unsigned char what)
 {
-   UCHAR buff[3]={IAC,WILL};
+   static UCHAR buff[3]={IAC,WILL};
+
    buff[2] = what;
+
    TN5250_LOG(("SSL_Write: %x %x %x\n", buff[0], buff[1], buff[2]));
    return SSL_write(This->ssl_handle, buff, 3);
 }
@@ -988,10 +732,6 @@ static int ssl_stream_host_verb(Tn5250Stream * This, unsigned char verb,
 
       case DONT:
       case WONT:
-	if(what == TN3270E) 
-	  {
-	    This->streamtype = TN3270_STREAM;
-	  }
 	break;
 
       case WILL:
@@ -1116,8 +856,6 @@ static void ssl_stream_host_sb(Tn5250Stream * This, UCHAR *sb_buf,
   int sbType;
   int sbParm;
   Tn5250Buffer tbuf;
-  UCHAR deviceResponse[] = {IAC,SB,TN3270E,TN3270E_DEVICE_TYPE,TN3270E_IS};
-  UCHAR functionResponse[] = {IAC,SB,TN3270E,TN3270E_FUNCTIONS};
   char * dummyname = "TN3E002";
   
   if (sb_len <= 0)
@@ -1129,60 +867,6 @@ static void ssl_stream_host_sb(Tn5250Stream * This, UCHAR *sb_buf,
   sbType = sb_buf[0];
   switch (sbType) 
     {
-    case TN3270E:
-      sb_buf += 1;
-      sb_len -= 1;
-      sbParm = sb_buf[0];
-      switch (sbParm)
-	{
-	case TN3270E_DEVICE_TYPE:
-	  sb_buf += 2; /* Device string follows DEVICE_TYPE IS parameter */
-	  sb_len -= 2;
-	  tn5250_buffer_init(&tbuf);
-	  tn5250_buffer_append_data(&tbuf, deviceResponse, 
-				    sizeof(deviceResponse));
-	  for(i=0; i<sb_len && sb_buf[i] != IAC; i++)
-	    tn5250_buffer_append_byte(&tbuf, sb_buf[i]);
-	  tn5250_buffer_append_byte(&tbuf, TN3270E_CONNECT);
-	  tn5250_buffer_append_data(&tbuf, dummyname, strlen(dummyname));
-	  tn5250_buffer_append_byte(&tbuf, IAC);
-	  tn5250_buffer_append_byte(&tbuf, SE);
-	  rc = SSL_write(This->ssl_handle, (char *) tn5250_buffer_data(&tbuf),
-		       tn5250_buffer_length(&tbuf));
-	  if (rc<1) {
-            errnum = SSL_get_error(This->ssl_handle, rc);
-	    printf("Error in SSL_write: %s\n", ERR_error_string(errnum,NULL));
-	    exit(5);
-	  }
-	  break;
-	case TN3270E_FUNCTIONS:
-	  sb_buf += 2; /* Function list follows FUNCTIONS REQUEST parameter */ 
-	  sb_len -= 2;
-	  tn5250_buffer_init(&tbuf);
-	  tn5250_buffer_append_data(&tbuf, functionResponse, 
-				    sizeof(functionResponse));
-	  
-	  tn5250_buffer_append_byte(&tbuf, TN3270E_IS);
-	  for(i=0; i<sb_len && sb_buf[i] != IAC; i++)
-	    {
-	      tn5250_buffer_append_byte(&tbuf, sb_buf[i]);
-	      This->options = This->options | (1 << (sb_buf[i]+1));
-	    }
-	  
-	  tn5250_buffer_append_byte(&tbuf, IAC);
-	  tn5250_buffer_append_byte(&tbuf, SE);
-	  rc = SSL_write(This->ssl_handle, (char *) tn5250_buffer_data(&tbuf),
-		       tn5250_buffer_length(&tbuf));
-	  if (rc<1) {
-            errnum = SSL_get_error(This->ssl_handle, rc);
-	    printf("Error in SSL_write: %s\n", ERR_error_string(errnum,NULL));
-	    exit(5);
-	  }
-	  break;
-	default:
-	  break;
-	}
-      break;
     case TERMINAL_TYPE:
       sb_buf += 2;  /* Assume IS follows SB option type. */
       sb_len -= 2;
@@ -1285,7 +969,7 @@ static void ssl_stream_sb(Tn5250Stream * This, unsigned char *sb_buf, int sb_len
       if (This->config != NULL) {
 	 if ((iter = This->config->vars) != NULL) {
 	    do {
-	      if ((strlen (iter->name) > 4) && (!memcmp (iter->name, "env.", 4))) {
+	       if (strlen (iter->name) > 4 && !memcmp (iter->name, "env.", 4)) {
 		  ssl_stream_sb_var_value(&out_buf,
 			(unsigned char *) iter->name + 4,
 			(unsigned char *) iter->value);
@@ -1323,23 +1007,27 @@ static void ssl_stream_sb(Tn5250Stream * This, unsigned char *sb_buf, int sb_len
  *    is waiting on the socket or -2 if disconnected, or -END_OF_RECORD if a 
  *    telnet EOR escape sequence was encountered.
  *****/
+#define TN5250_RBSIZE 8192
 static int ssl_stream_get_byte(Tn5250Stream * This)
 {
    unsigned char temp;
    unsigned char verb;
+   static unsigned char rcvbuf[TN5250_RBSIZE];
+   static int rcvbufpos = 0;
+   static int rcvbuflen = -1; 
 
    do {
       if (This->state == TN5250_STREAM_STATE_NO_DATA)
 	 This->state = TN5250_STREAM_STATE_DATA;
 
-      This->rcvbufpos ++;
-      if (This->rcvbufpos >= This->rcvbuflen) {
-          This->rcvbufpos = 0;
-          This->rcvbuflen = ssl_stream_get_next(This, This->rcvbuf, TN5250_RBSIZE);
-          if (This->rcvbuflen<0) 
-              return This->rcvbuflen;
+      rcvbufpos ++;
+      if (rcvbufpos >= rcvbuflen) {
+          rcvbufpos = 0;
+          rcvbuflen = ssl_stream_get_next(This, rcvbuf, TN5250_RBSIZE);
+          if (rcvbuflen<0) 
+              return rcvbuflen;
       }
-      temp = This->rcvbuf[This->rcvbufpos];
+      temp = rcvbuf[rcvbufpos];
 
       switch (This->state) {
       case TN5250_STREAM_STATE_DATA:
@@ -1496,17 +1184,11 @@ static void ssl_stream_write(Tn5250Stream * This, unsigned char *data, int size)
  *    occuring IAC characters.
  *****/
 static void ssl_stream_send_packet(Tn5250Stream * This, int length, 
-				      StreamHeader header, unsigned char *data)
-{
+		int flowtype, unsigned char flags, unsigned char opcode,
+		unsigned char *data)  {
+
    Tn5250Buffer out_buf;
    int n;
-   int flowtype;
-   unsigned char flags;
-   unsigned char opcode;
-
-   flowtype = header.h5250.flowtype;
-   flags = header.h5250.flags;
-   opcode = header.h5250.opcode;
 
    length = length + 10;
 
@@ -1531,6 +1213,7 @@ static void ssl_stream_send_packet(Tn5250Stream * This, int length,
    tn5250_buffer_append_byte(&out_buf, IAC);
    tn5250_buffer_append_byte(&out_buf, EOR);
 
+#if 0
 #ifndef NDEBUG
    TN5250_LOG(("SendPacket: length = %d\nSendPacket: data follows.",
 	tn5250_buffer_length(&out_buf)));
@@ -1542,42 +1225,10 @@ static void ssl_stream_send_packet(Tn5250Stream * This, int length,
    }
    TN5250_LOG(("\n"));
 #endif
+#endif
 
    ssl_stream_write(This, tn5250_buffer_data(&out_buf), tn5250_buffer_length(&out_buf));
    tn5250_buffer_free(&out_buf);
-}
-
-void
-tn3270_ssl_stream_send_packet(Tn5250Stream * This, int length,
-			  StreamHeader header,
-			  unsigned char * data)
-{
-  Tn5250Buffer out_buf;
-
-  tn5250_buffer_init(&out_buf);
-
-  if(This->streamtype == TN3270E_STREAM)
-    {
-      tn5250_buffer_append_byte(&out_buf, header.h3270.data_type);
-      tn5250_buffer_append_byte(&out_buf, header.h3270.request_flag);
-      tn5250_buffer_append_byte(&out_buf, header.h3270.response_flag);
-
-      tn5250_buffer_append_byte(&out_buf, header.h3270.sequence >> 8);
-      tn5250_buffer_append_byte(&out_buf, header.h3270.sequence & 0x00ff);
-    }
-  
-  tn5250_buffer_append_data(&out_buf, data, length);
-      
-  ssl_stream_escape(&out_buf);
-
-  tn5250_buffer_append_byte(&out_buf, IAC);
-  tn5250_buffer_append_byte(&out_buf, EOR);
-   
-  ssl_stream_write(This, tn5250_buffer_data(&out_buf), 
-		      tn5250_buffer_length(&out_buf));
-
-  tn5250_buffer_free(&out_buf);
-
 }
 
 /****f* lib5250/ssl_stream_handle_receive
@@ -1621,10 +1272,8 @@ int ssl_stream_handle_receive(Tn5250Stream * This)
 
       if (c == -END_OF_RECORD && This->current_record != NULL) {
 	 /* End of current packet. */
-#ifndef NDEBUG
          if (tn5250_logfile!=NULL) 
              tn5250_record_dump(This->current_record);
-#endif
 	 This->records = tn5250_record_list_add(This->records, This->current_record);
 	 This->current_record = NULL;
 	 This->record_count++;
@@ -1691,29 +1340,6 @@ int ssl_stream_passwd_cb(char *buf, int size, int rwflag, Tn5250Stream *This) {
     buf[size - 1] = '\0';
     return(strlen(buf));
 
-}
-
-X509 *ssl_stream_load_cert(Tn5250Stream *This, const char *file) {
-
-    BIO *cf;
-    X509 *x;
-
-    if ((cf = BIO_new(BIO_s_file())) == NULL) {
-        DUMP_ERR_STACK();
-        return NULL;
-    }
-
-    if (BIO_read_filename(cf, file) <= 0) {
-        DUMP_ERR_STACK();
-        return NULL;
-    }
-
-    x = PEM_read_bio_X509_AUX(cf, NULL,
-            (pem_password_cb *)ssl_stream_passwd_cb, This);
-
-    BIO_free(cf);
-
-    return (x);
 }
 
 #endif /* HAVE_LIBSSL */

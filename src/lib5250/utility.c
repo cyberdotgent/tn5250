@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -286,10 +286,8 @@ Tn5250CharMap *tn5250_char_map_new (const char *map)
       char winmap[10];
       _snprintf(winmap, sizeof(winmap)-1, "win%s", map);
       for (t = tn5250_transmaps; t->name; t++) {
-         if (strcmp(t->name, winmap) == 0) {
-              TN5250_LOG(("Using map %s\n", t->name));
-       	      return t;
-         }
+         if (strcmp(t->name, winmap) == 0)
+   	 return t;
       }
    }
 #endif
@@ -333,12 +331,12 @@ void tn5250_char_map_destroy (Tn5250CharMap *map)
  */
 int tn5250_char_map_printable_p(Tn5250CharMap *map, Tn5250Char data)
 {
-   switch (data) 
+   switch (data)
      {
-       /* 
-	  Ideographic Shift-In and Shift-Out. 
-	  case 0x0e: 
-	  case 0x0f: 
+       /*
+         Ideographic Shift-In and Shift-Out.
+         case 0x0e:
+         case 0x0f:
        */
      default:
        break;
@@ -454,7 +452,6 @@ void tn5250_log_assert(int val, char const *expr, char const *file, int line)
       abort ();
    }
 }
-#endif				/* NDEBUG */
 
 
 /****f* lib5250/tn5250_parse_color
@@ -531,6 +528,7 @@ int tn5250_parse_color(Tn5250Config *config, const char *colorname,
     *blue = b;
     return 0;
 }
+#endif				/* NDEBUG */
 
 
 /****f* lib5250/tn5250_setenv
@@ -568,105 +566,3 @@ int tn5250_setenv(const char *name, const char *value, int overwrite) {
 
      return ret;
 }
-
-/****f* lib5250/tn5250_run_cmd
- * NAME
- *    tn5250_run_cmd
- * SYNOPSIS
- *    tn5250_run_cmd ("notepad", 0);
- * INPUTS
- *    const char   *       cmd        -
- *    int                  wait       - 
- * DESCRIPTION
- *    Run a command (submitted to us by the AS/400)
- *****/
-#ifndef WIN32
-int tn5250_run_cmd(const char *cmd, int wait) {
-
-    struct sigaction sa;
-    int sig;
-    int cpid;
-
-    sa.sa_handler = sig_child;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-
-#ifdef SIGCHLD
-    sigaction(SIGCHLD, &sa, NULL);
-#else
-#ifdef SIGCLD
-    sigaction(SIGCLD, &sa, NULL);
-#endif
-#endif
-
-    switch ( cpid = fork() ) {
-        case -1:
-           return -1;
-
-        case 0:
-           system(cmd);
-           _exit(0);
-    }
-
-    if (wait) 
-      waitpid(cpid, NULL, 0);
-
-    return 0;
-}
-#endif
-
-#ifdef WIN32
-int win32_run_process(const char *cmd, int wait);
-
-int tn5250_run_cmd(const char *cmd, int wait) {
-
-  char *tempcmd;
-  char *prefix = "cmd.exe /c ";
-  int rc;
-
-  rc = win32_run_process(cmd, wait);
-
-  if (rc == -1) {
-
-     tempcmd = malloc(strlen(prefix) + strlen(cmd) + 1);
-     strcpy(tempcmd, prefix);
-     strcat(tempcmd, cmd);
-
-     rc = win32_run_process(tempcmd, wait);
-     free(tempcmd);
-  }
-
-  return rc;
-}
-
-int win32_run_process(const char *cmd, int wait) {
-    
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-
-  ZeroMemory(&si, sizeof(si));
-  ZeroMemory(&pi, sizeof(si));
-  si.cb = sizeof(si);
-
-  if ( !CreateProcess( NULL,            /* no module name */
-                       (LPTSTR)cmd,     /* command line */
-                       NULL,            /* don't inherit process bandle */
-                       NULL,            /* don't inherit thread handle */
-                       FALSE,           /* no inheritance, by golly! */
-                       0,               /* flags */
-                       NULL,            /* use parent's environment */
-                       NULL,            /* use parent's directory */
-                       &si,             /* STARTUPINFO */
-                       &pi )) {         /* PROCESS_INFORMATION */
-       return -1;
-  }
-
-  if (wait)
-     WaitForSingleObject( pi.hProcess, INFINITE );
-
-  CloseHandle(pi.hProcess);
-  CloseHandle(pi.hThread);
-  return 0;
-}
-    
-#endif /* ifdef WIN32 */

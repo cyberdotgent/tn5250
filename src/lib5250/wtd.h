@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 2000-2008 Jason M. Felice
+ * Copyright (C) 2000 Jason M. Felice
  * 
  * This file is part of TN5250.
  *
@@ -23,12 +23,11 @@
 #define WTD_H
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-  struct _Tn5250Buffer;
-  struct _Tn5250DBuffer;
+struct _Tn5250Buffer;
+struct _Tn5250DBuffer;
 
 /****s* lib5250/Tn5250WTDContext
  * NAME
@@ -59,37 +58,36 @@ extern "C"
  *
  * SOURCE
  */
-  struct _Tn5250WTDContext
-  {
-    struct _Tn5250Buffer *buffer;
+struct _Tn5250WTDContext {
+   struct _Tn5250Buffer *	 buffer;
 
-    struct _Tn5250DBuffer *src;
-    struct _Tn5250DBuffer *dst;
+   struct _Tn5250DBuffer *	 src;
+   struct _Tn5250DBuffer *	 dst;
 
-    /* Our current position within the display. */
-    int y, x;
+   /* Our current position within the display. */
+   int				 y, x;
 
-    /* This is a sort of buffer for run-length-encoding the output data
-     * characters using Repeat to Address orders. */
-    int ra_count;
-    unsigned char ra_char;
+   /* This is a sort of buffer for run-length-encoding the output data
+    * characters using Repeat to Address orders. */
+   int				 ra_count;
+   unsigned char		 ra_char;
 
-    /* A flag indicating that we have used a Clear Unit or a Clear Unit
-     * Alternate command.  It's helpful in making assumptions about the state
-     * of the display. */
-    int clear_unit:1;
-  };
+   /* A flag indicating that we have used a Clear Unit or a Clear Unit
+    * Alternate command.  It's helpful in making assumptions about the state
+    * of the display. */
+   int				 clear_unit : 1;
+};
 
-  typedef struct _Tn5250WTDContext Tn5250WTDContext;
+typedef struct _Tn5250WTDContext Tn5250WTDContext;
 /*******/
 
-  extern Tn5250WTDContext *tn5250_wtd_context_new (struct _Tn5250Buffer *buf,
-						   struct _Tn5250DBuffer *sd,
-						   struct _Tn5250DBuffer *dd);
-  extern void tn5250_wtd_context_destroy (Tn5250WTDContext * This);
-  extern void tn5250_wtd_context_convert (Tn5250WTDContext * This);
-  extern void tn5250_wtd_context_set_ic (Tn5250WTDContext * This,
-					 int y, int x);
+extern Tn5250WTDContext * tn5250_wtd_context_new    (struct _Tn5250Buffer *buf,
+						     struct _Tn5250DBuffer *sd,
+						     struct _Tn5250DBuffer *dd);
+extern void		  tn5250_wtd_context_destroy(Tn5250WTDContext *This);
+extern void		  tn5250_wtd_context_convert(Tn5250WTDContext *This);
+extern void               tn5250_wtd_context_set_ic(Tn5250WTDContext *This,
+                                                    int y, int x);
 #ifdef __cplusplus
 }
 #endif

@@ -1,5 +1,5 @@
 /* TN5250
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -34,8 +34,6 @@ extern "C" {
 #define TN5250_DISPLAY_IND_X_CLOCK	   	0x0008
 #define TN5250_DISPLAY_IND_INSERT	   	0x0010
 #define TN5250_DISPLAY_IND_FER			0x0020
-#define TN5250_DISPLAY_IND_MACRO		0x0040
-#define TN5250_DISPLAY_WORD_WRAP_SPACE		0x00
 
 struct _Tn5250Terminal;
 struct _Tn5250DBuffer;
@@ -44,7 +42,6 @@ struct _Tn5250Session;
 struct _Tn5250Buffer;
 struct _Tn5250CharMap;
 struct _Tn5250Config;
-struct _Tn5250Macro;
 
 /****s* lib5250/Tn5250Display
  * NAME
@@ -64,14 +61,9 @@ struct _Tn5250Display {
    struct _Tn5250Session *session;
    struct _Tn5250CharMap *map;
    struct _Tn5250Config *config;
-   struct _Tn5250Macro *macro;
    int indicators;
 
    unsigned char *saved_msg_line;
-   unsigned char *msg_line;
-   int msg_len;
-   int keystate;
-   int keySRC;
 
    /* Queued keystroke ring buffer. */
    int key_queue_head, key_queue_tail;
@@ -80,9 +72,6 @@ struct _Tn5250Display {
    int indicators_dirty : 1;
    int pending_insert : 1;
    int sign_key_hack : 1;
-   int uninhibited : 1;
-   int allow_strpccmd : 1;
-   int field_minus_in_char : 1;
 };
 
 typedef struct _Tn5250Display Tn5250Display;
@@ -118,9 +107,7 @@ extern void	  tn5250_display_set_cursor_field     (Tn5250Display *This,
 						       Tn5250Field *field);
 extern void	  tn5250_display_set_cursor_home      (Tn5250Display *This);
 extern void	  tn5250_display_set_cursor_next_field(Tn5250Display *This);
-extern void tn5250_display_set_cursor_next_logical_field(Tn5250Display *This);
 extern void       tn5250_display_set_cursor_prev_field(Tn5250Display *This);
-extern void tn5250_display_set_cursor_prev_logical_field(Tn5250Display *This);
 
 extern void	  tn5250_display_shift_right	      (Tn5250Display *This,
 						       Tn5250Field *field,
@@ -146,9 +133,6 @@ extern void	  tn5250_display_make_wtd_data        (Tn5250Display *This,
 						       struct _Tn5250Buffer *b,
 						       struct _Tn5250DBuffer *);
 extern void	  tn5250_display_save_msg_line	      (Tn5250Display *This);
-extern void	  tn5250_display_set_msg_line	      (Tn5250Display *This,
-                                                       const unsigned char *m,
-                                                       int msglen);
 extern void	  tn5250_display_set_char_map	      (Tn5250Display *This,
                                                        const char *name);
 
@@ -170,23 +154,10 @@ extern void       tn5250_display_kf_backtab	      (Tn5250Display *This);
 extern void	  tn5250_display_kf_end		      (Tn5250Display *This);
 extern void       tn5250_display_kf_home              (Tn5250Display *This);
 extern void	  tn5250_display_kf_delete            (Tn5250Display *This);
-extern void	  tn5250_display_kf_prevword 	      (Tn5250Display *This);
-extern void	  tn5250_display_kf_nextword 	      (Tn5250Display *This);
-extern void	  tn5250_display_kf_prevfld 	      (Tn5250Display *This);
-extern void	  tn5250_display_kf_nextfld 	      (Tn5250Display *This);
-extern void	  tn5250_display_kf_fieldhome 	      (Tn5250Display *This);
-extern void	  tn5250_display_kf_newline 	      (Tn5250Display *This);
-extern void	  tn5250_display_kf_macro 	      (Tn5250Display *This,
-                                                       int Ch);
-
-void tn5250_display_erase_region (Tn5250Display * This,
-				  unsigned int startrow,
-				  unsigned int startcol, unsigned int endrow,
-				  unsigned int endcol, unsigned int leftedge,
-				  unsigned int rightedge);
-void tn5250_display_wordwrap (Tn5250Display * This, unsigned char *text,
-			      int totallen, int fieldlen, Tn5250Field *field);
-
+extern void	  tn5250_display_kf_prevword          (Tn5250Display *This);
+extern void	  tn5250_display_kf_nextword          (Tn5250Display *This);
+extern void	  tn5250_display_kf_fieldhome         (Tn5250Display *This);
+extern void	  tn5250_display_kf_newline           (Tn5250Display *This);
 
 #define tn5250_display_dbuffer(This) \
    ((This)->display_buffers)

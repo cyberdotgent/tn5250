@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -23,7 +23,6 @@
 
 /* External declarations of initializers for each type of stream. */
 extern int tn5250_telnet_stream_init (Tn5250Stream *This);
-extern int tn3270_telnet_stream_init (Tn5250Stream *This);
 #ifdef HAVE_LIBSSL
 extern int tn5250_ssl_stream_init (Tn5250Stream *This);
 #endif
@@ -34,13 +33,13 @@ extern int tn5250_debug_stream_init (Tn5250Stream *This);
 /* This structure and the stream_types[] array defines what types of
  * streams we can create. */
 struct _Tn5250StreamType {
-   const char *prefix;
+   char *prefix;
    int (* init) (Tn5250Stream *This);
 };
 
 typedef struct _Tn5250StreamType Tn5250StreamType;
 
-static const Tn5250StreamType stream_types[] = {
+static Tn5250StreamType stream_types[] = {
 #ifndef NDEBUG
    { "debug:", tn5250_debug_stream_init },
 #endif
@@ -56,7 +55,6 @@ static const Tn5250StreamType stream_types[] = {
 
 static void streamInit(Tn5250Stream *This, long timeout)
 {
-  This->options = 0;
   This->status = 0;
   This->config = NULL;
   This->connect = NULL;
@@ -68,9 +66,6 @@ static void streamInit(Tn5250Stream *This, long timeout)
   This->records = This->current_record = NULL;
   This->sockfd = (SOCKET_TYPE) - 1;
   This->msec_wait = timeout;
-  This->streamtype = TN5250_STREAM;
-  This->rcvbufpos = 0;
-  This->rcvbuflen = -1;
   tn5250_buffer_init(&(This->sb_buf));
 }
 
@@ -81,7 +76,6 @@ static void streamInit(Tn5250Stream *This, long timeout)
  *    ret = tn5250_stream_open (to);
  * INPUTS
  *    const char *         to         - `URL' of host to connect to.
- *    Tn5250Config     *   config     - config to associate w/stream
  * DESCRIPTION
  *    Opens a 5250 stream to the specified host.  URL is of the format 
  *    [protocol]:host:[port], where protocol is currently one of the following:
@@ -101,7 +95,7 @@ static void streamInit(Tn5250Stream *This, long timeout)
 Tn5250Stream *tn5250_stream_open (const char *to, Tn5250Config *config)
 {
    Tn5250Stream *This = tn5250_new(Tn5250Stream, 1);
-   const Tn5250StreamType *iter;
+   Tn5250StreamType *iter;
    const char *postfix;
    int ret;
 
@@ -109,7 +103,7 @@ Tn5250Stream *tn5250_stream_open (const char *to, Tn5250Config *config)
 
       streamInit(This, 0);
 
-      if (config != NULL) 
+      if (config != NULL)
            tn5250_stream_config(This, config);
 
       /* Figure out the stream type. */
@@ -159,23 +153,17 @@ Tn5250Stream *tn5250_stream_open (const char *to, Tn5250Config *config)
  * DESCRIPTION
  *    DOCUMENT ME!!!
  *****/
-Tn5250Stream *tn5250_stream_host (SOCKET_TYPE masterfd, long timeout,
-				  int streamtype)
+Tn5250Stream *tn5250_stream_host (SOCKET_TYPE masterfd, long timeout)
 {
    Tn5250Stream *This = tn5250_new(Tn5250Stream, 1);
+   Tn5250StreamType *iter;
+   const char *postfix;
    int ret;
 
    if (This != NULL) {
       streamInit(This, timeout);
-      if(streamtype == TN5250_STREAM) 
-	{
-	  /* Assume telnet stream type. */
-	  ret = tn5250_telnet_stream_init (This);
-	}
-      else
-	{
-	  ret = tn3270_telnet_stream_init (This);
-	}
+      /* Assume telnet stream type. */
+      ret = tn5250_telnet_stream_init (This);
       if (ret != 0) {
          tn5250_stream_destroy (This);
          return NULL;
@@ -261,15 +249,9 @@ Tn5250Record *tn5250_stream_get_record(Tn5250Stream * This)
    This->records = tn5250_record_list_remove(This->records, record);
    This->record_count--;
 
-   if(This->streamtype == TN5250_STREAM)
-     {
-       TN5250_ASSERT(tn5250_record_length(record)>= 10);
-       offset = 6 + tn5250_record_data(record)[6];
-     }
-   else
-     {
-       offset = 0;
-     }
+   TN5250_ASSERT(tn5250_record_length(record)>= 10);
+
+   offset = 6 + tn5250_record_data(record)[6];
 
    TN5250_LOG(("tn5250_stream_get_record: offset = %d\n", offset));
    tn5250_record_set_cur_pos(record, offset);
@@ -297,6 +279,7 @@ void tn5250_stream_setenv(Tn5250Stream * This, const char *name, const char *val
       TN5250_ASSERT (This->config != NULL);
    }
    name_buf = (char*)malloc (strlen (name) + 10);
+   TN5250_ASSERT(name_buf != NULL);
    strcpy (name_buf, "env.");
    strcat (name_buf, name);
    tn5250_config_set (This->config, name_buf, value);
@@ -323,6 +306,10 @@ const char *tn5250_stream_getenv(Tn5250Stream * This, const char *name)
       return NULL;
 
    name_buf = (char*)malloc (strlen (name) + 10);
+   if (name_buf ==NULL) {
+      TN5250_LOG (("tn5250_stream_setenv: not enough memory.\n"));
+      return NULL;
+   }
    strcpy (name_buf, "env.");
    strcat (name_buf, name);
    val = tn5250_config_get (This->config, name_buf);
@@ -348,6 +335,11 @@ void tn5250_stream_unsetenv(Tn5250Stream * This, const char *name)
       return; /* Nothing to unset. */
 
    name_buf = (char*)malloc (strlen (name) + 10);
+   if (name_buf == NULL) {
+      TN5250_LOG (("tn5250_stream_setenv: not enough memory.\n"));
+      return;
+   }
+
    strcpy (name_buf, "env.");
    strcat (name_buf, name);
    tn5250_config_unset (This->config, name_buf);

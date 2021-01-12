@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -57,8 +57,6 @@ typedef unsigned char Tn5250Char;
  *    (and back).
  * SOURCE
  */
-
-
 struct _Tn5250CharMap {
    const char *name;
    const unsigned char *to_remote_map;
@@ -66,13 +64,6 @@ struct _Tn5250CharMap {
 };
 
 typedef struct _Tn5250CharMap Tn5250CharMap;
-
-struct _clientaddr {
-  unsigned long int address;
-  unsigned long int mask;
-};  
-
-typedef struct _clientaddr clientaddr;
 
 extern Tn5250CharMap tn5250_transmaps[];
 /*******/
@@ -83,7 +74,6 @@ void tn5250_char_map_destroy(Tn5250CharMap *This);
 void tn5250_closeall(int fd);
 int tn5250_daemon(int nochdir, int noclose, int ignsigcld);
 int tn5250_make_socket(unsigned short int port);
-
 Tn5250Char tn5250_char_map_to_remote(Tn5250CharMap *This, Tn5250Char ascii);
 Tn5250Char tn5250_char_map_to_local(Tn5250CharMap *This, Tn5250Char ebcdic);
 
@@ -114,8 +104,6 @@ extern FILE * tn5250_logfile;
 
 int tn5250_parse_color(Tn5250Config *config, const char *colorname, 
                         int *r, int *g, int *b);
-int tn5250_run_cmd(const char *cmd, int wait);
-
 #ifdef __cplusplus
 }
 #endif

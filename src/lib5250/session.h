@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -69,7 +69,6 @@ extern "C" {
 /* These are pseudo-aid codes used by the display. */
 #define TN5250_SESSION_AID_SYSREQ       -1
 #define TN5250_SESSION_AID_ATTN         -2
-#define TN5250_SESSION_AID_TESTREQ      -3
 
 
 #define TN5250_SESSION_CTL_IC_ULOCK     0x40 /* ??? - Not in my (older) spec */

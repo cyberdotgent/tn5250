@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -40,27 +40,6 @@ extern "C" {
 
 struct _Tn5250Config;
 
-struct Tn5250Header {
-  int flowtype;
-  unsigned char flags;
-  unsigned char opcode;
-};
-
-struct Tn3270Header {
-  unsigned char data_type;
-  unsigned char request_flag;
-  unsigned char response_flag;
-  int sequence;
-};
-
-union _StreamHeader {
-  struct Tn5250Header h5250;
-  struct Tn3270Header h3270;
-};  
-  
-typedef union _StreamHeader StreamHeader;
-
-
 /****s* lib5250/Tn5250Stream
  * NAME
  *    Tn5250Stream
@@ -78,34 +57,27 @@ typedef union _StreamHeader StreamHeader;
  *    manages the communications transport, such as TCP/IP.
  * SOURCE
  */
-#define TN5250_RBSIZE 8192
 struct _Tn5250Stream {
-  int (* connect) (struct _Tn5250Stream *This, const char *to);
+   int (* connect) (struct _Tn5250Stream *This, const char *to);
   int (* accept) (struct _Tn5250Stream *This, SOCKET_TYPE masterSock);
-  void (* disconnect) (struct _Tn5250Stream *This);
-  int (* handle_receive) (struct _Tn5250Stream *This);
-  void (* send_packet) (struct _Tn5250Stream *This, int length, 
-			StreamHeader header, unsigned char *data);
-  void (/*@null@*/ * destroy) (struct _Tn5250Stream /*@only@*/ *This);
+   void (* disconnect) (struct _Tn5250Stream *This);
+   int (* handle_receive) (struct _Tn5250Stream *This);
+   void (* send_packet) (struct _Tn5250Stream *This, int length, int flowtype, unsigned char flags,
+	 unsigned char opcode, unsigned char *data);
+   void (/*@null@*/ * destroy) (struct _Tn5250Stream /*@only@*/ *This);
 
-  struct _Tn5250Config *config; 
+   struct _Tn5250Config *config; 
 
-  Tn5250Record /*@null@*/ *records;
-  Tn5250Record /*@dependent@*/ /*@null@*/ *current_record;
-  int record_count;
+   Tn5250Record /*@null@*/ *records;
+   Tn5250Record /*@dependent@*/ /*@null@*/ *current_record;
+   int record_count;
 
-  Tn5250Buffer sb_buf;
-  
-  SOCKET_TYPE sockfd;
-  int status;
-  int state;
-  int streamtype;
+   Tn5250Buffer sb_buf;
+
+   SOCKET_TYPE sockfd;
+   int status;
+   int state;
   long msec_wait;
-  unsigned char options;
-
-  unsigned char rcvbuf[TN5250_RBSIZE];
-  int rcvbufpos;
-  int rcvbuflen;
 
 #ifdef HAVE_LIBSSL
   SSL *ssl_handle;
@@ -121,21 +93,19 @@ struct _Tn5250Stream {
 typedef struct _Tn5250Stream Tn5250Stream;
 /******/
 
-
 extern Tn5250Stream /*@only@*/ /*@null@*/ *tn5250_stream_open (const char *to, struct _Tn5250Config *config);
 extern int tn5250_stream_config (Tn5250Stream *This, struct _Tn5250Config *config);
 extern void tn5250_stream_destroy(Tn5250Stream /*@only@*/ * This);
 extern Tn5250Record /*@only@*/ *tn5250_stream_get_record(Tn5250Stream * This);
-extern Tn5250Stream *tn5250_stream_host(SOCKET_TYPE masterSock, long timeout,
-					int streamtype);
+extern Tn5250Stream *tn5250_stream_host(SOCKET_TYPE masterSock, long timeout);
 #define tn5250_stream_connect(This,to) \
    (* (This->connect)) ((This),(to))
 #define tn5250_stream_disconnect(This) \
    (* (This->disconnect)) ((This))
 #define tn5250_stream_handle_receive(This) \
    (* (This->handle_receive)) ((This))
-#define tn5250_stream_send_packet(This,len,header,data) \
-   (* (This->send_packet)) ((This),(len),(header),(data))
+#define tn5250_stream_send_packet(This,len,flow,flags,opcode,data) \
+   (* (This->send_packet)) ((This),(len),(flow),(flags),(opcode),(data))
 
 /* This should be a more flexible replacement for different NEW_ENVIRON
  * strings. */

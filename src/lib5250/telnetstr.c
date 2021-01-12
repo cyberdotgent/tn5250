@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -37,11 +37,8 @@ static void telnet_stream_destroy(Tn5250Stream *This);
 static void telnet_stream_disconnect(Tn5250Stream * This);
 static int telnet_stream_handle_receive(Tn5250Stream * This);
 static void telnet_stream_send_packet(Tn5250Stream * This, int length,
-				      StreamHeader header,
+	      int flowtype, unsigned char flags, unsigned char opcode,
 				      unsigned char *data);
-static void tn3270_stream_send_packet(Tn5250Stream * This, int length,
-				      StreamHeader header,
-				      unsigned char * data);
 
 #define SEND    1
 #define IS      0
@@ -62,36 +59,6 @@ static void tn3270_stream_send_packet(Tn5250Stream * This, int length,
 #define TERMINAL_TYPE   24
 #define TIMING_MARK     6
 #define NEW_ENVIRON	39
-
-#define TN3270E         40
-
-/* Sub-Options for TN3270E negotiation */
-#define TN3270E_ASSOCIATE   0
-#define TN3270E_CONNECT     1
-#define TN3270E_DEVICE_TYPE 2
-#define TN3270E_FUNCTIONS   3
-#define TN3270E_IS          4
-#define TN3270E_REASON      5
-#define TN3270E_REJECT      6
-#define TN3270E_REQUEST     7
-#define TN3270E_SEND        8
-
-/* Reason codes for TN3270E negotiation */
-#define TN3270E_CONN_PARTNER    0
-#define TN3270E_DEVICE_IN_USE   1
-#define TN3270E_INV_ASSOCIATE   2
-#define TN3270E_INV_NAME        3
-#define TN3270E_INV_DEVICE_TYPE 4
-#define TN3270E_TYPE_NAME_ERROR 5
-#define TN3270E_UNKNOWN_ERROR   6
-#define TN3270E_UNSUPPORTED_REQ 7
-
-/* Function names for TN3270E FUNCTIONS sub-option */
-#define TN3270E_BIND_IMAGE      0
-#define TN3270E_DATA_STREAM_CTL 1
-#define TN3270E_RESPONSES       2
-#define TN3270E_SCS_CTL_CODES   3
-#define TN3270E_SYSREQ          4
 
 #define EOR  239
 #define SE   240
@@ -119,29 +86,20 @@ static void tn3270_stream_send_packet(Tn5250Stream * This, int length,
 typedef unsigned char UCHAR;
 #endif
 
-static const UCHAR hostInitStr[] = {IAC,DO,NEW_ENVIRON,IAC,DO,TERMINAL_TYPE};
-static const UCHAR hostDoEOR[] = {IAC,DO,END_OF_RECORD};
-static const UCHAR hostDoBinary[] = {IAC,DO,TRANSMIT_BINARY};
-static const UCHAR hostDoTN3270E[] = {IAC,DO,TN3270E};
-static const UCHAR hostSBDevice[] = {IAC,SB,TN3270E,TN3270E_SEND,TN3270E_DEVICE_TYPE,
-			       IAC,SE};
+static UCHAR hostInitStr[] = {IAC,DO,NEW_ENVIRON,IAC,DO,TERMINAL_TYPE};
+static UCHAR hostDoEOR[] = {IAC,DO,END_OF_RECORD};
+static UCHAR hostDoBinary[] = {IAC,DO,TRANSMIT_BINARY};
+
 typedef struct doTable_t {
-   const UCHAR	*cmd;
+   UCHAR	*cmd;
    unsigned	len;
 } DOTABLE;
 
-static const DOTABLE host5250DoTable[] = {
-  hostInitStr,	sizeof(hostInitStr),
-  hostDoEOR,	sizeof(hostDoEOR),
-  hostDoBinary,	sizeof(hostDoBinary),
-  NULL,		0
-};
-
-static const DOTABLE host3270DoTable[] = {
-  hostInitStr,  sizeof(hostInitStr),
-  hostDoEOR,    sizeof(hostDoEOR),
-  hostDoBinary, sizeof(hostDoBinary),
-  NULL,         0
+static const DOTABLE hostDoTable[] = {
+	hostInitStr,	sizeof(hostInitStr),
+	hostDoEOR,	sizeof(hostDoEOR),
+	hostDoBinary,	sizeof(hostDoBinary),
+	NULL,		0
 };
 
 static const UCHAR SB_Str_NewEnv[]={IAC, SB, NEW_ENVIRON, SEND, USERVAR,
@@ -160,8 +118,7 @@ static const UCHAR SB_Str_TermType[]={IAC, SB, TERMINAL_TYPE, SEND, IAC, SE};
 
 static char *getTelOpt(what)
 {
-   char *wcp;
-   static char wbuf[12];
+   char *wcp, wbuf[10];
 
    switch (what) {
       case TERMINAL_TYPE:
@@ -180,7 +137,7 @@ static char *getTelOpt(what)
 		wcp = "<EOR>";
 		break;
       default:
-		snprintf(wcp=wbuf, sizeof(wbuf), "<%02X>", what);
+		sprintf(wcp=wbuf, "<%02X>", what);
 		break;
    }
    return wcp;
@@ -330,29 +287,6 @@ int tn5250_telnet_stream_init (Tn5250Stream *This)
    This->handle_receive = telnet_stream_handle_receive;
    This->send_packet = telnet_stream_send_packet;
    This->destroy = telnet_stream_destroy;
-   This->streamtype = TN5250_STREAM;
-   return 0; /* Ok */
-}
-
-/****f* lib5250/tn3270_telnet_stream_init
- * NAME
- *    tn3270_telnet_stream_init
- * SYNOPSIS
- *    ret = tn3270_telnet_stream_init (This);
- * INPUTS
- *    Tn5250Stream *       This       - 
- * DESCRIPTION
- *    DOCUMENT ME!!!
- *****/
-int tn3270_telnet_stream_init (Tn5250Stream *This)
-{
-   This->connect = telnet_stream_connect;
-   This->accept = telnet_stream_accept;
-   This->disconnect = telnet_stream_disconnect;
-   This->handle_receive = telnet_stream_handle_receive;
-   This->send_packet = tn3270_stream_send_packet;
-   This->destroy = telnet_stream_destroy;
-   This->streamtype = TN3270E_STREAM;
    return 0; /* Ok */
 }
 
@@ -380,6 +314,7 @@ static int telnet_stream_connect(Tn5250Stream * This, const char *to)
 
    /* Figure out the internet address. */
    address = (char *)malloc (strlen (to)+1);
+   TN5250_ASSERT (address != NULL);
    strcpy (address, to);
    if (strchr (address, ':'))
       *strchr (address, ':') = '\0';
@@ -445,13 +380,11 @@ static int telnet_stream_connect(Tn5250Stream * This, const char *to)
  *****/
 static int telnet_stream_accept(Tn5250Stream * This, SOCKET_TYPE masterfd)
 {
-   int i, retCode;
-   /*
-   int len;
+   int i, len, retCode;
    struct sockaddr_in serv_addr;
-   */
    fd_set fdr;
    struct timeval tv;
+   int negotiating;
 
 #ifndef WINELIB
    u_long ioctlarg=1L;
@@ -478,102 +411,32 @@ static int telnet_stream_accept(Tn5250Stream * This, SOCKET_TYPE masterfd)
    /* Commence TN5250 negotiations...
       Send DO options (New Environment, Terminal Type, etc.) */
 
-   if(This->streamtype == TN3270E_STREAM)
-     {
-       retCode = send(This->sockfd, hostDoTN3270E, sizeof(hostDoTN3270E), 0);
-       if (WAS_ERROR_RET(retCode)) {
-	 perror("telnetstr");
+   for (i=0; hostDoTable[i].cmd; i++) {
+      retCode = send(This->sockfd, hostDoTable[i].cmd, hostDoTable[i].len, 0);
+      if (WAS_ERROR_RET(retCode)) {
+	perror("telnetstr");
 	 return LAST_ERROR;
-       }
+      }
 
-       FD_ZERO(&fdr);
-       FD_SET(This->sockfd, &fdr);
-       tv.tv_sec = 5;
-       tv.tv_usec = 0;
-       TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-       if (FD_ISSET(This->sockfd, &fdr)) {
-	   
-	 if (!telnet_stream_handle_receive(This)) {
-	   retCode = LAST_ERROR;
-	   return retCode ? retCode : -1;
-	 }
-       } else {
-	 return -1;
-       }
+      FD_ZERO(&fdr);
+      FD_SET(This->sockfd, &fdr);
+      tv.tv_sec = 5;
+      tv.tv_usec = 0;
+      TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
+      if (FD_ISSET(This->sockfd, &fdr)) {
 
-       if(This->streamtype == TN3270E_STREAM)
-	 {
-	   retCode = send(This->sockfd, hostSBDevice, sizeof(hostSBDevice),0);
+	if (!telnet_stream_handle_receive(This)) {
+	  retCode = LAST_ERROR;
+	  return retCode ? retCode : -1;
+	}
+      } else {
+	return -1;
+      }
+   }
 
-	   if (WAS_ERROR_RET(retCode)) {
-	     perror("telnetstr");
-	     return LAST_ERROR;
-	   }
-
-	   FD_ZERO(&fdr);
-	   FD_SET(This->sockfd, &fdr);
-	   tv.tv_sec = 5;
-	   tv.tv_usec = 0;
-	   TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-	   if (FD_ISSET(This->sockfd, &fdr)) {
-	     
-	     if (!telnet_stream_handle_receive(This)) {
-	       retCode = LAST_ERROR;
-	       return retCode ? retCode : -1;
-	     }
-	   } else {
-	     return -1;
-	   }
-
-	   FD_ZERO(&fdr);
-	   FD_SET(This->sockfd, &fdr);
-	   tv.tv_sec = 5;
-	   tv.tv_usec = 0;
-	   TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-	   if (FD_ISSET(This->sockfd, &fdr)) {
-	     
-	     if (!telnet_stream_handle_receive(This)) {
-	       retCode = LAST_ERROR;
-	       return retCode ? retCode : -1;
-	     }
-	   } else {
-	     return -1;
-	   }
-	 } 
-       else 
-	 {
-	   goto neg5250;
-	 }
-     }
-   else
-     {
-     neg5250:
-       for (i=0; host5250DoTable[i].cmd; i++) {
-	 retCode = send(This->sockfd, host5250DoTable[i].cmd, 
-			host5250DoTable[i].len, 0);
-	 if (WAS_ERROR_RET(retCode)) {
-	   perror("telnetstr");
-	   return LAST_ERROR;
-	 }
-	 
-	 FD_ZERO(&fdr);
-	 FD_SET(This->sockfd, &fdr);
-	 tv.tv_sec = 5;
-	 tv.tv_usec = 0;
-	 TN_SELECT(This->sockfd + 1, &fdr, NULL, NULL, &tv);
-	 if (FD_ISSET(This->sockfd, &fdr)) {
-	   
-	   if (!telnet_stream_handle_receive(This)) {
-	     retCode = LAST_ERROR;
-	     return retCode ? retCode : -1;
-	   }
-	 } else {
-	   return -1;
-	 }
-       }
-     }
    return 0;
 }
+
 
 /****i* lib5250/telnet_stream_disconnect
  * NAME
@@ -622,6 +485,7 @@ static void telnet_stream_destroy(Tn5250Stream *This)
  *****/
 static int telnet_stream_get_next(Tn5250Stream * This, unsigned char *buf, int size)
 {
+   unsigned char curchar;
    int rc;
    fd_set fdr;
    struct timeval tv;
@@ -652,7 +516,8 @@ static int telnet_stream_get_next(Tn5250Stream * This, unsigned char *buf, int s
 
 static int sendWill(SOCKET_TYPE sock, unsigned char what)
 {
-   UCHAR buff[3]={IAC,WILL};
+   static UCHAR buff[3]={IAC,WILL};
+
    buff[2] = what;
    return send(sock, buff, 3, 0);
 }
@@ -663,7 +528,7 @@ static int sendWill(SOCKET_TYPE sock, unsigned char what)
  * SYNOPSIS
  *    telnet_stream_host_verb (This, verb, what);
  * INPUTS
- *    SOCKET_TYPE	sock	-
+ *    Tn5250Stream *	This	-
  *    unsigned char	verb	-
  *    unsigned char	what	-
  * DESCRIPTION
@@ -696,10 +561,6 @@ static int telnet_stream_host_verb(Tn5250Stream * This, unsigned char verb,
 
       case DONT:
       case WONT:
-	if(what == TN3270E) 
-	  {
-	    This->streamtype = TN3270_STREAM;
-	  }
 	break;
 
       case WILL:
@@ -815,94 +676,35 @@ static void telnet_stream_do_verb(Tn5250Stream * This, unsigned char verb, unsig
 static void telnet_stream_host_sb(Tn5250Stream * This, UCHAR *sb_buf,
 		int sb_len)
 {
-  int rc;
-  int i;
-  int sbType;
-  int sbParm;
-  Tn5250Buffer tbuf;
-  UCHAR deviceResponse[] = {IAC,SB,TN3270E,TN3270E_DEVICE_TYPE,TN3270E_IS};
-  UCHAR functionResponse[] = {IAC,SB,TN3270E,TN3270E_FUNCTIONS};
-  char * dummyname = "TN3E002";
-  
-  if (sb_len <= 0)
-    return;
+   int i, sbType;
+   Tn5250Buffer tbuf;
 
-  TN5250_LOG(("GotSB:<IAC><SB>"));
-  TNSB_LOG(sb_buf,sb_len);
-  TN5250_LOG(("<IAC><SE>\n"));
-  sbType = sb_buf[0];
-  switch (sbType) 
-    {
-    case TN3270E:
-      sb_buf += 1;
-      sb_len -= 1;
-      sbParm = sb_buf[0];
-      switch (sbParm)
-	{
-	case TN3270E_DEVICE_TYPE:
-	  sb_buf += 2; /* Device string follows DEVICE_TYPE IS parameter */
-	  sb_len -= 2;
-	  tn5250_buffer_init(&tbuf);
-	  tn5250_buffer_append_data(&tbuf, deviceResponse, 
-				    sizeof(deviceResponse));
-	  for(i=0; i<sb_len && sb_buf[i] != IAC; i++)
-	    tn5250_buffer_append_byte(&tbuf, sb_buf[i]);
-	  tn5250_buffer_append_byte(&tbuf, TN3270E_CONNECT);
-	  tn5250_buffer_append_data(&tbuf, dummyname, strlen(dummyname));
-	  tn5250_buffer_append_byte(&tbuf, IAC);
-	  tn5250_buffer_append_byte(&tbuf, SE);
-	  rc = TN_SEND(This->sockfd, (char *) tn5250_buffer_data(&tbuf),
-		       tn5250_buffer_length(&tbuf), 0);
-	  if (WAS_ERROR_RET(rc)) {
-	    printf("Error writing to socket: %s\n", strerror(LAST_ERROR));
-	    exit(5);
-	  }
-	  break;
-	case TN3270E_FUNCTIONS:
-	  sb_buf += 2; /* Function list follows FUNCTIONS REQUEST parameter */ 
-	  sb_len -= 2;
-	  tn5250_buffer_init(&tbuf);
-	  tn5250_buffer_append_data(&tbuf, functionResponse, 
-				    sizeof(functionResponse));
-	  
-	  tn5250_buffer_append_byte(&tbuf, TN3270E_IS);
-	  for(i=0; i<sb_len && sb_buf[i] != IAC; i++)
-	    {
-	      tn5250_buffer_append_byte(&tbuf, sb_buf[i]);
-	      This->options = This->options | (1 << (sb_buf[i]+1));
-	    }
-	  
-	  tn5250_buffer_append_byte(&tbuf, IAC);
-	  tn5250_buffer_append_byte(&tbuf, SE);
-	  rc = TN_SEND(This->sockfd, (char *) tn5250_buffer_data(&tbuf),
-		       tn5250_buffer_length(&tbuf), 0);
-	  if (WAS_ERROR_RET(rc)) {
-	    printf("Error writing to socket: %s\n", strerror(LAST_ERROR));
-	    exit(5);
-	  }
-	  break;
-	default:
-	  break;
-	}
-      break;
-    case TERMINAL_TYPE:
-      sb_buf += 2;  /* Assume IS follows SB option type. */
-      sb_len -= 2;
-      tn5250_buffer_init(&tbuf);
-      for (i=0; i<sb_len && sb_buf[i]!=IAC; i++)
-	tn5250_buffer_append_byte(&tbuf, sb_buf[i]);
-      tn5250_buffer_append_byte(&tbuf, 0);
-      tn5250_stream_setenv(This, "TERM", (char *) tbuf.data);
-      tn5250_buffer_free(&tbuf);
-      break;
-    case NEW_ENVIRON:
-      /* TODO:
-       * setNewEnvVars(This, sb_buf, sb_len);
-       */
-      break;
-    default:
-      break;
-    } /* switch */
+   if (sb_len <= 0)
+      return;
+
+   TN5250_LOG(("GotSB:<IAC><SB>"));
+   TNSB_LOG(sb_buf,sb_len);
+   TN5250_LOG(("<IAC><SE>\n"));
+   sbType = sb_buf[0];
+   sb_buf += 2;  /* Assume IS follows SB option type. */
+   sb_len -= 2;
+   switch (sbType) {
+      case TERMINAL_TYPE:
+		tn5250_buffer_init(&tbuf);
+		for (i=0; i<sb_len && sb_buf[i]!=IAC; i++)
+                   tn5250_buffer_append_byte(&tbuf, sb_buf[i]);
+                tn5250_buffer_append_byte(&tbuf, 0);
+		tn5250_stream_setenv(This, "TERM", (char *) tbuf.data);
+		tn5250_buffer_free(&tbuf);
+		break;
+      case NEW_ENVIRON:
+		/* TODO:
+		 * setNewEnvVars(This, sb_buf, sb_len);
+		 */
+		break;
+      default:
+		break;
+   } /* switch */
 } /* telnet_stream_host_sb */
 
 /****i* lib5250/telnet_stream_sb_var_value
@@ -977,17 +779,17 @@ static void telnet_stream_sb(Tn5250Stream * This, unsigned char *sb_buf, int sb_
 
       This->status = This->status | TERMINAL;
    } else if (sb_buf[0] == NEW_ENVIRON) {
-     Tn5250ConfigStr *iter;
-     tn5250_buffer_append_byte(&out_buf, IAC);
-     tn5250_buffer_append_byte(&out_buf, SB);
-     tn5250_buffer_append_byte(&out_buf, NEW_ENVIRON);
-     tn5250_buffer_append_byte(&out_buf, IS);
+      Tn5250ConfigStr *iter;
+      tn5250_buffer_append_byte(&out_buf, IAC);
+      tn5250_buffer_append_byte(&out_buf, SB);
+      tn5250_buffer_append_byte(&out_buf, NEW_ENVIRON);
+      tn5250_buffer_append_byte(&out_buf, IS);
 
       if (This->config != NULL) {
 	 if ((iter = This->config->vars) != NULL) {
 	    do {
-	      if ((strlen (iter->name) > 4) && (!memcmp (iter->name, "env.", 4))) {
-		telnet_stream_sb_var_value(&out_buf,
+	       if (strlen (iter->name) > 4 && !memcmp (iter->name, "env.", 4)) {
+		  telnet_stream_sb_var_value(&out_buf,
 			(unsigned char *) iter->name + 4,
 			(unsigned char *) iter->value);
 	       }
@@ -1023,23 +825,28 @@ static void telnet_stream_sb(Tn5250Stream * This, unsigned char *sb_buf, int sb_
  *    is waiting on the socket or -2 if disconnected, or -END_OF_RECORD if a 
  *    telnet EOR escape sequence was encountered.
  *****/
+#define TN5250_RBSIZE 8192
 static int telnet_stream_get_byte(Tn5250Stream * This)
 {
    int temp;
    unsigned char verb;
+   static unsigned char rcvbuf[TN5250_RBSIZE];
+   static int rcvbufpos = 0;
+   static int rcvbuflen = -1;
+   
 
    do {
       if (This->state == TN5250_STREAM_STATE_NO_DATA)
 	 This->state = TN5250_STREAM_STATE_DATA;
 
-      This->rcvbufpos ++;
-      if (This->rcvbufpos >= This->rcvbuflen) {
-          This->rcvbufpos = 0;
-          This->rcvbuflen = telnet_stream_get_next(This, This->rcvbuf, TN5250_RBSIZE);
-          if (This->rcvbuflen<0) 
-               return This->rcvbuflen;
+      rcvbufpos ++;
+      if (rcvbufpos >= rcvbuflen) {
+          rcvbufpos = 0;
+          rcvbuflen = telnet_stream_get_next(This, rcvbuf, TN5250_RBSIZE);
+          if (rcvbuflen<0) 
+               return rcvbuflen;
       }
-      temp = This->rcvbuf[This->rcvbufpos];
+      temp = rcvbuf[rcvbufpos];
 
       switch (This->state) {
       case TN5250_STREAM_STATE_DATA:
@@ -1048,10 +855,10 @@ static int telnet_stream_get_byte(Tn5250Stream * This)
 	 break;
 
       case TN5250_STREAM_STATE_HAVE_IAC:
-	switch(temp) {
-	case IAC:
-	  This->state = TN5250_STREAM_STATE_DATA;
-	  break;
+	 switch (temp) {
+	 case IAC:
+	    This->state = TN5250_STREAM_STATE_DATA;
+	    break;
 
 	 case DO:
 	 case DONT:
@@ -1209,18 +1016,11 @@ static void telnet_stream_write(Tn5250Stream * This, unsigned char *data, int si
  *    Send a packet, prepending a header and escaping any naturally
  *    occuring IAC characters.
  *****/
-static void telnet_stream_send_packet(Tn5250Stream * This, int length, 
-				      StreamHeader header, unsigned char *data)
+static void telnet_stream_send_packet(Tn5250Stream * This, int length, int flowtype, unsigned char flags,
+			       unsigned char opcode, unsigned char *data)
 {
    Tn5250Buffer out_buf;
    int n;
-   int flowtype;
-   unsigned char flags;
-   unsigned char opcode;
-
-   flowtype = header.h5250.flowtype;
-   flags = header.h5250.flags;
-   opcode = header.h5250.opcode;
 
    length = length + 10;
 
@@ -1260,37 +1060,25 @@ static void telnet_stream_send_packet(Tn5250Stream * This, int length,
    telnet_stream_write(This, tn5250_buffer_data(&out_buf), tn5250_buffer_length(&out_buf));
    tn5250_buffer_free(&out_buf);
 }
-
 void
-tn3270_stream_send_packet(Tn5250Stream * This, int length,
-			  StreamHeader header,
+tn3270_stream_send_packet(Tn5250Stream * This, int length, 
 			  unsigned char * data)
 {
   Tn5250Buffer out_buf;
 
-  tn5250_buffer_init(&out_buf);
+   tn5250_buffer_init(&out_buf);
 
-  if(This->streamtype == TN3270E_STREAM)
-    {
-      tn5250_buffer_append_byte(&out_buf, header.h3270.data_type);
-      tn5250_buffer_append_byte(&out_buf, header.h3270.request_flag);
-      tn5250_buffer_append_byte(&out_buf, header.h3270.response_flag);
+   tn5250_buffer_append_data(&out_buf, data, length);
 
-      tn5250_buffer_append_byte(&out_buf, header.h3270.sequence >> 8);
-      tn5250_buffer_append_byte(&out_buf, header.h3270.sequence & 0x00ff);
-    }
-  
-  tn5250_buffer_append_data(&out_buf, data, length);
-      
-  telnet_stream_escape(&out_buf);
+   telnet_stream_escape(&out_buf);
 
-  tn5250_buffer_append_byte(&out_buf, IAC);
-  tn5250_buffer_append_byte(&out_buf, EOR);
-   
-  telnet_stream_write(This, tn5250_buffer_data(&out_buf), 
-		      tn5250_buffer_length(&out_buf));
+   tn5250_buffer_append_byte(&out_buf, IAC);
+   tn5250_buffer_append_byte(&out_buf, EOR);
 
-  tn5250_buffer_free(&out_buf);
+   telnet_stream_write(This, tn5250_buffer_data(&out_buf), 
+		       tn5250_buffer_length(&out_buf));
+
+   tn5250_buffer_free(&out_buf);
 
 }
 
@@ -1314,10 +1102,8 @@ int telnet_stream_handle_receive(Tn5250Stream * This)
 
       if (c == -END_OF_RECORD && This->current_record != NULL) {
 	 /* End of current packet. */
-#ifndef NDEBUG
          if (tn5250_logfile!=NULL) 
              tn5250_record_dump(This->current_record);
-#endif
 	 This->records = tn5250_record_list_add(This->records, This->current_record);
 	 This->current_record = NULL;
 	 This->record_count++;

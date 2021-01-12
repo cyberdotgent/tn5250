@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -22,8 +22,7 @@
 #ifndef PRIVATE_H
 #define PRIVATE_H
 
-/*#include "tn5250-autoconfig.h"*/
-#include "config.h"
+#include "tn5250-config.h"
 
 #if defined(WIN32) || defined(WINE)
 #include <windows.h>
@@ -34,6 +33,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <malloc.h>
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -77,18 +77,35 @@
 #include "dbuffer.h"
 #include "field.h"
 #include "codes5250.h"
-#include "scrollbar.h"
+#include "terminal.h"
 #include "session.h"
 #include "printsession.h"
 #include "display.h"
-#include "macro.h"
-#include "menu.h"
-#include "wtd.h"
-#include "window.h"
-#include "terminal.h"
 #include "debug.h"
+#include "wtd.h"
 #include "scs.h"
 #include "conf.h"
+
+#if USE_CURSES
+#ifdef HAVE_NCURSES_H
+#include <ncurses.h>
+#else
+#include <curses.h>
+#endif
+#ifdef HAVE_TERMCAP_H
+#include <termcap.h>
+#endif
+#include "cursesterm.h"
+#endif
+
+#if USE_SLANG
+#if defined(HAVE_SLANG_H)
+#include <slang.h>
+#elif defined(HAVE_SLANG_SLANG_H)
+#include <slang/slang.h>
+#endif
+#include "slangterm.h"
+#endif
 
 extern char *version_string;
 

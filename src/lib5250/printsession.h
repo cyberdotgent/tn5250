@@ -1,5 +1,5 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -45,7 +45,6 @@ struct _Tn5250PrintSession {
    FILE /*@null@*/ *printfile;
    Tn5250CharMap *map;
    char /*@null@*/ *output_cmd;
-   void *script_slot;
 };
 
 typedef struct _Tn5250PrintSession Tn5250PrintSession;

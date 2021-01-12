@@ -1,5 +1,5 @@
 /* TN5250
- * Copyright (C) 1997-2008 Michael Madore
+ * Copyright (C) 1997 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -19,7 +19,7 @@
  * Boston, MA 02111-1307 USA
  * 
  */
-#include "config.h"
+#include "tn5250-config.h"
 
 #ifndef NDEBUG
 
@@ -35,13 +35,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <malloc.h>
 
 #include "utility.h"
 #include "buffer.h"
 #include "record.h"
 #include "stream.h"
 #include "dbuffer.h"
-#include "menu.h"
 #include "terminal.h"
 #include "field.h"
 #include "display.h"
@@ -59,8 +59,10 @@ typedef struct _Tn5250TerminalPrivate Tn5250TerminalPrivate;
 static int debug_stream_connect(Tn5250Stream * This, const char *to);
 static void debug_stream_disconnect(Tn5250Stream * This);
 static int debug_stream_handle_receive(Tn5250Stream * This);
-static void debug_stream_send_packet(Tn5250Stream * This, int length, 
-				     StreamHeader header, unsigned char *data);static void debug_stream_destroy(Tn5250Stream *This);
+static void debug_stream_send_packet(Tn5250Stream * This, int length,
+	      int flowtype, unsigned char flags, unsigned char opcode,
+				      unsigned char *data);
+static void debug_stream_destroy(Tn5250Stream *This);
 
 static void debug_terminal_init(Tn5250Terminal *This);
 static void debug_terminal_term(Tn5250Terminal *This);
@@ -122,7 +124,6 @@ Tn5250Terminal *tn5250_debug_terminal_new (Tn5250Terminal *slave, Tn5250Stream *
       This->waitevent = debug_terminal_waitevent;
       This->getkey = debug_terminal_getkey;
       This->beep = debug_terminal_beep;
-      This->config = NULL;
 
       This->data = tn5250_new(Tn5250TerminalPrivate, 1);
       if (This->data == NULL) {
@@ -203,9 +204,9 @@ static int debug_stream_handle_receive(Tn5250Stream * This)
    return 1;
 }
 
-static void debug_stream_send_packet(Tn5250Stream * This, int length, 
-				     StreamHeader header, unsigned char *data)
-
+static void debug_stream_send_packet(Tn5250Stream * This, int length,
+      int flowtype, unsigned char flags, unsigned char opcode,
+      unsigned char *data)
 {
    /* noop */
 }

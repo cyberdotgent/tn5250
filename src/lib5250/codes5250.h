@@ -1,5 +1,5 @@
 /* TN5250
- * Copyright (C) 2000-2008 Michael Madore
+ * Copyright (C) 2000 Michael Madore
  * 
  * This file is part of TN5250.
  *
@@ -32,29 +32,21 @@ extern "C" {
 #define ERR_ROW 25
 
 /* Commands */
+#define CMD_WRITE_TO_DISPLAY			0x11
 #define CMD_CLEAR_UNIT				0x40
 #define CMD_CLEAR_UNIT_ALTERNATE		0x20
 #define CMD_CLEAR_FORMAT_TABLE			0x50
-#define CMD_WRITE_TO_DISPLAY			0x11
-#define CMD_WRITE_ERROR_CODE            	0x21
-#define CMD_WRITE_ERROR_CODE_WINDOW            	0x22
-#define CMD_READ_INPUT_FIELDS			0x42
 #define CMD_READ_MDT_FIELDS			0x52
-#define CMD_READ_MDT_FIELDS_ALT			0x82
-#define CMD_READ_SCREEN_IMMEDIATE       	0x62
-#define CMD_READ_SCREEN_EXTENDED 	      	0x64
-#define CMD_READ_SCREEN_PRINT    	   	0x66
-#define CMD_READ_SCREEN_PRINT_EXTENDED       	0x68
-#define CMD_READ_SCREEN_PRINT_GRID       	0x6A
-#define CMD_READ_SCREEN_PRINT_EXT_GRID       	0x6C
 #define CMD_READ_IMMEDIATE			0x72
-#define CMD_READ_IMMEDIATE_ALT			0x83
-#define CMD_SAVE_SCREEN				0x02
-#define CMD_SAVE_PARTIAL_SCREEN			0x03
-#define CMD_RESTORE_SCREEN			0x12
-#define CMD_RESTORE_PARTIAL_SCREEN		0x13
-#define CMD_ROLL				0x23
+#define CMD_READ_SCREEN_IMMEDIATE       	0x62
 #define CMD_WRITE_STRUCTURED_FIELD		0xF3
+#define CMD_SAVE_SCREEN				0x02
+#define CMD_RESTORE_SCREEN			0x12
+#define CMD_WRITE_ERROR_CODE            	0x21
+#define CMD_READ_INPUT_FIELDS			0x42
+#define CMD_ROLL				0x23
+#define CMD_READ_MDT_FIELDS_ALT			0x82
+#define CMD_READ_IMMEDIATE_ALT			0x83
 
 /* Orders - those tagged FIXME are not implemented: */
 #define SOH	0x01		/* Start of header */
@@ -100,8 +92,8 @@ extern "C" {
 #define SF_5250_QUERY_STATION_STATE 0x72
 
 /*-----------------------------------------------------------------
- * Operator Error Codes see 5494 User's Guide (GA27-3960-03) 2.3.4
- *-----------------------------------------------------------------*/
+ - Operator Error Codes see 5494 User's Guide (GA27-3960-03) 2.3.4
+ ------------------------------------------------------------------*/
  
 #define ERR_DONT_KNOW		0x01
 #define ERR_BYPASS_FIELD	0x04
@@ -155,8 +147,7 @@ extern "C" {
 
 /*------------------------------------------------------------------------
  * More error codes - Data Stream Negative Responses (SC30-3533-04) 13.4 *
- *------------------------------------------------------------------------
- */
+ ------------------------------------------------------------------------*/
  
 #define DSNR_RESEQ_ERR	  03
 #define DSNR_INVCURSPOS	0x22
@@ -196,28 +187,6 @@ extern "C" {
 #define ATTR_5250_BLUE		0x3A
 
 #define ATTR_5250_NORMAL	ATTR_5250_GREEN
-
-/*------------------------------------------------------------------------
- * Keyboard / Error handling states                                      *
- ------------------------------------------------------------------------*/
-#define TN5250_KEYSTATE_UNLOCKED	0
-#define TN5250_KEYSTATE_LOCKED		1
-#define TN5250_KEYSTATE_HARDWARE	2
-#define TN5250_KEYSTATE_PREHELP		3
-#define TN5250_KEYSTATE_POSTHELP	4
-
-#define TN5250_KBDSRC_NONE		0x0000   /* No Error */
-#define TN5250_KBDSRC_INVALID_CMD	0x0003   /* Bad key following CMD key */
-#define TN5250_KBDSRC_DATA_DISALLOWED	0x0004   /* Keyboard in MSR field */
-#define TN5250_KBDSRC_PROTECT		0x0005   /* Cursor in protected area */
-#define TN5250_KBDSRC_ALPHAONLY		0x0008   /* Field Requires Alpha */
-#define TN5250_KBDSRC_NUMONLY		0x0009   /* Field Requires Numeric */
-#define TN5250_KBDSRC_ONLY09 		0x0010   /* Only chars 0-9 allowed */
-#define TN5250_KBDSRC_SIGNPOS           0x0011   /* Sign position invalid */
-#define TN5250_KBDSRC_NOROOM            0x0012   /* No room for insert */
-#define TN5250_KBDSRC_FLDM_DISALLOWED   0x0016   /* Field- Not Allowed */
-#define TN5250_KBDSRC_FER	        0x0018   /* Field Exit Required */
-#define TN5250_KBDSRC_DUP_DISALLOWED    0x0019   /* Dup Key Not Allowed */
 
 #ifdef __cplusplus
 }

@@ -1,8 +1,8 @@
 /* TN5250 - An implementation of the 5250 telnet protocol.
- * Copyright (C) 1997-2008 Michael Madore
- * 
- * This file is part of TN5250.
+ * Copyright (C) 1997 Michael Madore
  *
+ * This file is part of TN5250.
+ * 
  * TN5250 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation; either version 2.1, or (at your option)
@@ -17,18 +17,15 @@
  * along with this software; see the file COPYING.  If not, write to
  * the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
  * Boston, MA 02111-1307 USA
- * 
  */
+#ifndef WIN32
 
 #include "tn5250-private.h"
 
-#ifndef WIN32
-
-
-static const struct response_code {
-   const char * code;
+static struct response_code {
+   char *code;
    int retval;
-   const char * text;
+   char *text;
 } response_codes[] = {
    { "I901", 1, "Virtual device has less function than source device." },
    { "I902", 1, "Session successfully started." },
@@ -93,7 +90,6 @@ Tn5250PrintSession *tn5250_print_session_new()
    This->output_cmd = NULL;
    This->conn_fd = -1;
    This->map = NULL;
-   This->script_slot = NULL;
 
    return This;
 }
@@ -190,7 +186,8 @@ void tn5250_print_session_set_output_command(Tn5250PrintSession * This, const ch
    if (This->output_cmd != NULL)
       free(This->output_cmd);
    This->output_cmd = (char *) malloc(strlen(output_cmd) + 1);
-   strcpy(This->output_cmd, output_cmd);
+   if (This->output_cmd != NULL)
+	   strcpy(This->output_cmd, output_cmd);
 }
 
 /****f* lib5250/tn5250_print_session_get_response_code
@@ -250,7 +247,6 @@ void tn5250_print_session_main_loop(Tn5250PrintSession * This)
    int pcount;
    int newjob;
    char responsecode[5];
-   StreamHeader header;
 
    while (1) {
       if (tn5250_print_session_waitevent(This)) {
@@ -292,29 +288,25 @@ void tn5250_print_session_main_loop(Tn5250PrintSession * This)
 	          tn5250_record_destroy(This->rec);
 	       This->rec = tn5250_stream_get_record(This->stream);
 
-	       if(tn5250_record_opcode(This->rec)
-		  == TN5250_RECORD_OPCODE_CLEAR) 
-		 {
-		   syslog(LOG_INFO, "Clearing print buffers");
-		   continue;
-		 }
-
-	       header.h5250.flowtype = TN5250_RECORD_FLOW_CLIENTO;
-	       header.h5250.flags    = TN5250_RECORD_H_NONE;
-	       header.h5250.opcode   = TN5250_RECORD_OPCODE_PRINT_COMPLETE;
+               if (tn5250_record_opcode(This->rec)
+                   == TN5250_RECORD_OPCODE_CLEAR)
+               {
+                  syslog(LOG_INFO, "Clearing print buffers");
+                  continue;
+               }
 
 	       tn5250_stream_send_packet(This->stream, 0,
-					 header,
-					 NULL);
-
+		     TN5250_RECORD_FLOW_CLIENTO,
+		     TN5250_RECORD_H_NONE,
+		     TN5250_RECORD_OPCODE_PRINT_COMPLETE,
+		     NULL);
 	       if (tn5250_record_length(This->rec) == 0x11) {
-		 syslog(LOG_INFO, "Job Complete\n");
-		 pclose(This->printfile);
-		 newjob = 1;
+	          syslog(LOG_INFO, "Job Complete\n");
+	          pclose(This->printfile);
+	          newjob = 1;
 	       } else {
-		 while (!tn5250_record_is_chain_end(This->rec))
-		   fprintf(This->printfile, "%c", 
-			   tn5250_record_get_byte(This->rec));
+	          while (!tn5250_record_is_chain_end(This->rec))
+		     fprintf(This->printfile, "%c", tn5250_record_get_byte(This->rec));
 	       }
 	    }
 	 }
@@ -356,11 +348,3 @@ static int tn5250_print_session_waitevent(Tn5250PrintSession * This)
 
 #endif /* ifndef WIN32 */
 /* vi:set sts=3 sw=3: */
-
-
-
-
-
-
-
-

@@ -5,29 +5,24 @@ project (tn5250)
 set (LIB5250_SRC 
 	src/lib5250/buffer.c
 	src/lib5250/conf.c
+	src/lib5250/cursesterm.c
 	src/lib5250/dbuffer.c
 	src/lib5250/debug.c
 	src/lib5250/display.c
 	src/lib5250/field.c
-	src/lib5250/macro.c
-	src/lib5250/menu.c
 	src/lib5250/printsession.c
 	src/lib5250/record.c
-	src/lib5250/scrollbar.c
 	src/lib5250/scs.c
 	src/lib5250/session.c
 	src/lib5250/sslstream.c
 	src/lib5250/stream.c
 	src/lib5250/telnetstr.c
-	src/lib5250/terminal.c
 	src/lib5250/utility.c
 	src/lib5250/version.c
-	src/lib5250/window.c
 	src/lib5250/wtd.c
 )
 
 set (TN5250_SRC
-	src/tn5250/cursesterm.c
 	src/tn5250/tn5250.c
 )
 
