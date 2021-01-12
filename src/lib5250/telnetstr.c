@@ -137,7 +137,7 @@ static char *getTelOpt(what)
 		wcp = "<EOR>";
 		break;
       default:
-		sprintf(wcp=wbuf, "<%02X>", what);
+		snprintf(wcp=wbuf, 4 ,"<%02X>", what);
 		break;
    }
    return wcp;
@@ -169,7 +169,7 @@ static void log_IAC_verb(char *tag, int verb, int what)
 		vcp = "<WONT>";
 		break;
       default:
-		sprintf(vcp=vbuf, "<%02X>", verb);
+		snprintf(vcp=vbuf, 4, "<%02X>", verb);
 		break;
    }
    fprintf(tn5250_logfile,"%s:<IAC>%s%s\n", tag, vcp, getTelOpt(what));
