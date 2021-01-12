@@ -48,12 +48,12 @@ add_library (5250 ${LIB5250_SRC})
 # misc utils
 if (WIN32)
 	add_definitions (-DWIN32)
-	add_executable (tn5250w ${TN5250_Windows_SRC})
-	target_link_libraries (tn5250w 5250)
-	target_link_libraries (tn5250w winmm)
-	target_link_libraries (tn5250w ws2_32)
+	add_executable (tn5250 ${TN5250_Windows_SRC})
+	target_link_libraries (tn5250 5250)
+	target_link_libraries (tn5250 winmm)
+	target_link_libraries (tn5250 ws2_32)
 
-	set_target_properties (tn5250w PROPERTIES
+	set_target_properties (tn5250 PROPERTIES
           LINK_FLAGS -mwindows
 	)
 

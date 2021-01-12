@@ -176,7 +176,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define TN5250_LIB_VERSION "0.16.5"
+#define TN5250_LIB_VERSION "0.20.0"
 
 /* Define if the X Window System is missing or not being used. */
 /* #undef X_DISPLAY_MISSING */
