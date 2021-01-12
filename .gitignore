@@ -1,0 +1,16 @@
+.scannerwork/
+*.log
+*.o
+*.a
+CMakeCache.txt
+CMakeFiles/
+build-wrapper-dump.json
+cmake_install.cmake
+lp5250d
+scs2ascii
+scs2pdf
+scs2ps
+tn5250
+*.exe
+*.dll
+Makefile
