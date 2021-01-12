@@ -15,3 +15,4 @@ tn5250
 *.dll
 Makefile
 .devops_vars
+cmake-build-debug
