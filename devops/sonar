@@ -1,0 +1,19 @@
+#!/bin/bash
+
+. ./.devops_vars
+
+SRCDIR=`pwd`
+BUILDDIR=`mktemp -d`
+
+cd $BUILDDIR
+cmake $SRCDIR
+build-wrapper-linux-x86-64 --out-dir . make
+cd $SRCDIR
+sonar-scanner \
+  -Dsonar.projectKey=tn5250 \
+  -Dsonar.sources=. \
+  -Dsonar.host.url=https://sonarqube.cyber.gent \
+  -Dsonar.login=$SONARQUBE_TOKEN \
+  -Dsonar.cfamily.build-wrapper-output=$BUILDDIR
+
+rm -Rf $BUILDDIR

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+
+SRCDIR=`pwd`
+BUILDDIR=`mktemp -d`
+
+cd $BUILDDIR
+cmake $SRCDIR
+make
+./tn5250 chonky.cyber.gent
+rm -Rf $BUILDDIR
+cd $SRCDIR
