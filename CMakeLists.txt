@@ -32,6 +32,12 @@ set (TN5250_Windows_SRC
 	src/win32/winterm.c
 )
 
+set ( TN5250_Chonky_SRC
+        src/win32/chonky.c
+	src/win32/tn5250-res.rc
+        src/win32/winterm.c
+)
+
 include_directories (src)
 include_directories (src/lib5250)
 
@@ -47,9 +53,18 @@ if (WIN32)
 	target_link_libraries (tn5250w winmm)
 	target_link_libraries (tn5250w ws2_32)
 
-	set_target_properties(tn5250w PROPERTIES
+	set_target_properties (tn5250w PROPERTIES
           LINK_FLAGS -mwindows
 	)
+
+        add_executable (chonky ${TN5250_Chonky_SRC})
+	target_link_libraries (chonky 5250)
+        target_link_libraries (chonky winmm)
+        target_link_libraries (chonky ws2_32)
+
+        set_target_properties (chonky PROPERTIES
+          LINK_FLAGS -mwindows
+        )
 else()
 	add_definitions (-DUSE_CURSES)
 	add_executable (lp5250d src/lp5250d/lp5250d.c)
