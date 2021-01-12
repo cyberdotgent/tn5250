@@ -66,6 +66,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdline, int show)
     WSADATA wsadata;
     char **argv = NULL;
     int argc, x;
+    HRSRC terminalFont;
+    HGLOBAL fontMem;
+    void * fontData;
+    size_t fontLen;
+    DWORD nFonts;
+    HANDLE fontHandle;
 
     argc = parse_cmdline(cmdline, NULL);
     if (argc>0) {
@@ -85,6 +91,22 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdline, int show)
 		   "TN5250", MB_OK | MB_ICONEXCLAMATION);
 	WSACleanup();
 	return 1;
+    }
+
+    /* Load embedded font */
+    terminalFont = FindResource(NULL, MAKEINTRESOURCE(IDF_TN3270_FONT), RT_FONT);
+    if (terminalFont) {
+        fontMem = LoadResource(NULL, terminalFont);
+	fontData = LockResource(fontMem);
+	fontLen = SizeofResource(NULL, terminalFont);
+	fontHandle = AddFontMemResourceEx (
+			fontData,
+			fontLen,
+                        NULL,
+			&nFonts);
+	if (fontHandle == 0) {
+		MessageBoxA(NULL, "Font add fails", "Error", MB_OK);
+	}
     }
 
 
@@ -119,7 +141,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdline, int show)
      
 
     if (tn5250_config_get (config, "font_80") == NULL) {
-          tn5250_config_set(config, "font_80", "Courier New");
+          tn5250_config_set(config, "font_80", "IBM 3270");
     }
 
 #ifndef NDEBUG

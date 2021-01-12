@@ -23,6 +23,7 @@
 #include "resource.h"
 
 IDI_TN5250_ICON ICON "tn5250.ico"
+IDF_TN3270_FONT FONT "3270-Regular.ttf"
 
 tn5250-win32-menu MENU DISCARDABLE
 BEGIN
