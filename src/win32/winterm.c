@@ -600,7 +600,7 @@ static void win32_terminal_init(Tn5250Terminal * This)
    /* create our main window */
    This->data->hwndMain = CreateWindow (TN5250_WNDCLASS, 
 	    		     title,
-		             WS_OVERLAPPEDWINDOW,
+		             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX ,
 			     CW_USEDEFAULT,
 	       		     CW_USEDEFAULT,
 		  	     800,
