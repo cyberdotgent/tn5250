@@ -506,8 +506,8 @@ void tn5250_curses_terminal_set_xterm_font (Tn5250Terminal *This,
    TN5250_ASSERT (This->data->font_80 !=NULL);
    This->data->font_132 = malloc(strlen(font132) + 6);
    TN5250_ASSERT (This->data->font_132 !=NULL);
-   sprintf(This->data->font_80, "\x1b]50;%s\x07", font80);
-   sprintf(This->data->font_132, "\x1b]50;%s\x07", font132);
+   snprintf(This->data->font_80, strlen(font80) + 6, "\x1b]50;%s\x07", font80);
+   snprintf(This->data->font_132, strlen(font132) + 6, "\x1b]50;%s\x07", font132);
    TN5250_LOG(("font_80 = %s.\n",This->data->font_80));
    TN5250_LOG(("font_132 = %s.\n",This->data->font_132));
 }
@@ -782,7 +782,7 @@ static void curses_terminal_update_indicators(Tn5250Terminal /*@unused@*/ * This
       memcpy(ind_buf + 30, "IM", 2);
    if ((inds & TN5250_DISPLAY_IND_FER) != 0)
       memcpy(ind_buf + 33, "FER", 3);
-   sprintf(ind_buf+72,"%03.3d/%03.3d",tn5250_display_cursor_x(display)+1,
+   snprintf(ind_buf+72,8, "%03.3d/%03.3d",tn5250_display_cursor_x(display)+1,
       tn5250_display_cursor_y(display)+1);
 
    attrset( (attr_t)COLOR_PAIR(COLOR_WHITE) );
