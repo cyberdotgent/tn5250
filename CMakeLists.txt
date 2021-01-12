@@ -26,6 +26,12 @@ set (TN5250_SRC
 	src/tn5250/tn5250.c
 )
 
+set (TN5250_Windows_SRC
+	src/win32/tn5250-win.c
+	src/win32/tn5250-res.rc
+	src/win32/winterm.c
+)
+
 include_directories (src)
 include_directories (src/lib5250)
 
@@ -34,19 +40,28 @@ add_definitions (-DUSE_CURSES)
 add_library (5250 ${LIB5250_SRC})
 
 # misc utils
-add_executable (lp5250d src/lp5250d/lp5250d.c)
-target_link_libraries (lp5250d 5250)
+if (WIN32)
+	add_definitions (-DWIN32)
+	add_executable (tn5250w ${TN5250_Windows_SRC})
+	target_link_libraries (tn5250w 5250)
+	target_link_libraries (tn5250w winmm)
+	target_link_libraries (tn5250w ws2_32)
+else()
+	add_definitions (-DUSE_CURSES)
+	add_executable (lp5250d src/lp5250d/lp5250d.c)
+	target_link_libraries (lp5250d 5250)
+	
+	add_executable (scs2ascii src/lp5250d/scs2ascii.c)
+	target_link_libraries (scs2ascii 5250)
+	
+	add_executable (scs2ps src/lp5250d/scs2ps.c)
+	target_link_libraries (scs2ps 5250)
+	
+	add_executable (scs2pdf src/lp5250d/scs2pdf.c)
+	target_link_libraries (scs2pdf 5250)
 
-add_executable (scs2ascii src/lp5250d/scs2ascii.c)
-target_link_libraries (scs2ascii 5250)
-
-add_executable (scs2ps src/lp5250d/scs2ps.c)
-target_link_libraries (scs2ps 5250)
-
-add_executable (scs2pdf src/lp5250d/scs2pdf.c)
-target_link_libraries (scs2pdf 5250)
-
-# curses 5250 client
-add_executable (tn5250 ${TN5250_SRC})
-target_link_libraries (tn5250 5250)
-target_link_libraries (tn5250 curses)
+	# curses 5250 client
+	add_executable (tn5250 ${TN5250_SRC})
+	target_link_libraries (tn5250 5250)
+	target_link_libraries (tn5250 curses)
+endif ()

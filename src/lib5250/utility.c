@@ -577,8 +577,7 @@ int tn5250_setenv(const char *name, const char *value, int overwrite) {
 
     ret = putenv(strval);
 
-    /* free(strval)   on some systems, it continues to use our memory,
-                      so we should not free it...                    */
+    free(strval);
 
     return ret;
 }

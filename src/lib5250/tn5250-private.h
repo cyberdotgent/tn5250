@@ -44,6 +44,7 @@
 
 #endif
 
+#ifndef WIN32
 #ifdef HAVE_LOCALE_H
 
 #include <locale.h>
@@ -85,6 +86,7 @@
 #include <pwd.h>
 
 #endif
+#endif
 
 #include "buffer.h"
 #include "record.h"
@@ -101,6 +103,10 @@
 #include "wtd.h"
 #include "scs.h"
 #include "conf.h"
+
+#ifdef WIN32
+#undef USE_CURSES
+#endif
 
 #if USE_CURSES
 #ifdef HAVE_NCURSES_H

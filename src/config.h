@@ -4,8 +4,9 @@
 #define SOCKET_TYPE int
 
 /* Define this to use the -lncurses or -lcurses support. */
+#ifndef _WIN32
 #define USE_CURSES 1
-
+#endif
 /* Define this to use the -lslang support. */
 /* #undef USE_SLANG */
 
@@ -153,18 +154,13 @@
 /* Define if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
-/* Define if you have the <sys/wait.h> header file. */
+#ifndef _WIN32
 #define HAVE_SYS_WAIT_H 1
-
-/* Define if you have the <termcap.h> header file. */
 #define HAVE_TERMCAP_H 1
-
-/* Define if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
+#endif
 
-/* Name of package */
 
-/* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
 /* The size of a `int', as computed by sizeof. */

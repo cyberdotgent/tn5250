@@ -204,7 +204,7 @@ int tn5250_config_load(Tn5250Config *This, const char *filename) {
             }
             name_len = strlen(name) + len;
             memcpy(name + strlen(name), scan, len);
-            name[name_len] = '\0';
+            name[name_len - 1] = '\0';
 
             scan += len;
             while (*scan && isspace (*scan))
