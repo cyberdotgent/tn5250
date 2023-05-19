@@ -16,3 +16,4 @@ tn5250
 Makefile
 .devops_vars
 cmake-build-debug
+.DS_Store
