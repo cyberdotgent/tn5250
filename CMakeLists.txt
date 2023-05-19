@@ -109,6 +109,8 @@ include_directories(${SDL2_INCLUDE_DIRS})
 
 set (sdl5250_SRC
 		src/sdl5250/sdl5250.c
+		src/sdl5250/sdlterm.c
+		src/sdl5250/sdlterm.h
 )
 set(sdl5250_ASSETS
 		src/sdl5250/3270-Regular.ttf
@@ -125,5 +127,4 @@ else()
 	add_executable(sdl5250 WIN32 ${sdl5250_SRC} sdl5250.exe.manifest)
 endif()
 
-target_link_libraries(sdl5250 ${SDL2_LIBRARIES} SDL2_ttf)
-
+target_link_libraries(sdl5250 ${SDL2_STATIC_LIBRARIES} SDL2_ttf::SDL2_ttf-static 5250)
