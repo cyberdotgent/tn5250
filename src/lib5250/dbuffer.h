@@ -100,6 +100,10 @@ extern void tn5250_dbuffer_set_ic(Tn5250DBuffer *This, int y, int x);
 
 extern void tn5250_dbuffer_roll(Tn5250DBuffer *This, int top, int bot, int lines);
 
+extern void tn5250_dbuffer_prevword(Tn5250DBuffer *This);
+
+extern void tn5250_dbuffer_nextword(Tn5250DBuffer *This);
+
 extern unsigned char tn5250_dbuffer_char_at(Tn5250DBuffer *This, int y, int x);
 
 #define tn5250_dbuffer_width(This) ((This)->w)

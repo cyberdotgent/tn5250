@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -60,6 +59,7 @@
 #ifdef HAVE_SYS_TYPES_H
 
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #endif
 

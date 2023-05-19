@@ -199,7 +199,7 @@ static Key curses_vt100[] = {
         /* ASCII DEL is not correctly reported as the DC key in some
          * termcaps */
         /* But it is backspace in some termcaps... */
-        /* { K_DELETE,		"\177" }, /* ASCII DEL */
+        /* { K_DELETE,		"\177" },  * ASCII DEL */
         {K_DELETE,     "\033\133\063\176"}, /* ASCII DEL Sequence: \E[3~ */
 
 
