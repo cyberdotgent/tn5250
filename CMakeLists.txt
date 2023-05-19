@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.7)
 
 project (tn5250)
 
@@ -97,7 +97,33 @@ if(APPLE)
 	add_executable(wx5250 MACOSX_BUNDLE ${wx5250_SRC})
 	set_target_properties(wx5250 PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/src/wx5250/Info.plist)
 else()
-	add_executable(wx5250 WIN32 ${SRCS} wx5250.exe.manifest)
+	add_executable(wx5250 WIN32 ${wx5250_SRC} wx5250.exe.manifest)
 endif()
 
 target_link_libraries(wx5250 PRIVATE ${wxWidgets_LIBRARIES})
+
+# SDL2 experiments:
+find_package(SDL2 REQUIRED)
+find_package(SDL2_ttf REQUIRED)
+include_directories(${SDL2_INCLUDE_DIRS})
+
+set (sdl5250_SRC
+		src/sdl5250/sdl5250.c
+)
+set(sdl5250_ASSETS
+		src/sdl5250/3270-Regular.ttf
+)
+
+
+if(APPLE)
+	add_executable(sdl5250 MACOSX_BUNDLE ${sdl5250_SRC})
+	target_sources(sdl5250 PRIVATE ${sdl5250_ASSETS})
+	set_target_properties(sdl5250 PROPERTIES
+			MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/src/sdl5250/Info.plist
+			RESOURCE "${sdl5250_ASSETS}")
+else()
+	add_executable(sdl5250 WIN32 ${sdl5250_SRC} sdl5250.exe.manifest)
+endif()
+
+target_link_libraries(sdl5250 ${SDL2_LIBRARIES} SDL2_ttf)
+
