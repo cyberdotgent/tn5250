@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 3.0)
 
 project (tn5250)
 
@@ -20,7 +20,7 @@ set (LIB5250_SRC
 	src/lib5250/utility.c
 	src/lib5250/version.c
 	src/lib5250/wtd.c
-)
+		src/wx5250/wx5250.cpp)
 
 set (TN5250_SRC
 	src/tn5250/tn5250.c
@@ -84,3 +84,20 @@ else()
 	target_link_libraries (tn5250 5250)
 	target_link_libraries (tn5250 curses)
 endif ()
+
+# wxWidgets experiments:
+find_package(wxWidgets REQUIRED)
+include(${wxWidgets_USE_FILE})
+
+set (wx5250_SRC
+	src/wx5250/wx5250.cpp
+)
+
+if(APPLE)
+	add_executable(wx5250 MACOSX_BUNDLE ${wx5250_SRC})
+	set_target_properties(wx5250 PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/src/wx5250/Info.plist)
+else()
+	add_executable(wx5250 WIN32 ${SRCS} wx5250.exe.manifest)
+endif()
+
+target_link_libraries(wx5250 PRIVATE ${wxWidgets_LIBRARIES})
