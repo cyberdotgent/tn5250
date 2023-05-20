@@ -7,9 +7,8 @@
 
 #include "tn5250-private.h"
 
-struct _SDL5250TerminalPrivate {
-    int version;
-};
+
+
 
 extern Tn5250Terminal /*@null@*/ /*@only@*/ *tn5250_sdl_terminal_new(void);
 
@@ -40,5 +39,9 @@ static int sdl_terminal_get_esc_key(Tn5250Terminal *This, int is_esc) /*@modifie
 static void sdl_terminal_beep(Tn5250Terminal *This);
 
 static int sdl_terminal_is_ruler(Tn5250Terminal *This, Tn5250Display *display, int x, int y);
+
+void sdl_terminal_loop(Tn5250Terminal * This);
+
+SDL_bool sdl_terminal_draw(Tn5250Terminal * This);
 
 #endif //TN5250_SDLTERM_H
