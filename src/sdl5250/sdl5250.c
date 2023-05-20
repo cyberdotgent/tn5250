@@ -36,7 +36,7 @@ int main(int argc, char *argv[] ) {
         tn5250_config_unref(config);
     }
 
-    tn5250_config_set(config, "host", "honecker.qseco.fr");
+    tn5250_config_set(config, "host", "backpain.qseco.fr");
 
     stream = tn5250_stream_open (tn5250_config_get (config, "host"), config);
     printf("Connecting... ");

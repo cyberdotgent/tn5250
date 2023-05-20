@@ -7,6 +7,8 @@
 
 #include "tn5250-private.h"
 
+#define SDL_TERMINAL_H 24
+#define SDL_TERMINAL_W 80
 
 
 
