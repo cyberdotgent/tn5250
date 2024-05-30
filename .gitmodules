@@ -1,0 +1,5 @@
+[submodule "deps/wxWidgets"]
+	path = deps/wxWidgets
+	url = https://github.com/wxWidgets/wxWidgets.git
+	branch = 573e56d432cc2c4b19a27aa5cad3e6045bfc542b
+	fetchRecurseSubmodules = true
